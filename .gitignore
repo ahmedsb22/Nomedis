@@ -1,0 +1,26 @@
+﻿# Builds & Compilations
+**/target/
+**/build/
+*.class
+*.jar
+
+# Logs & Crash
+*.log
+hs_err_pid*
+replay_pid*
+
+# Environnements virtuels & Dépendances
+**/node_modules/
+**/venv/
+**/__pycache__/
+*.pyc
+
+# IDE & Historique local
+.history/
+.vscode/
+.idea/
+*.iml
+
+# Fichiers de contexte (trop lourds)
+project_context.txt
+project_structure.txt

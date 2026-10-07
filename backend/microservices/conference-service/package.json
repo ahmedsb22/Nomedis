@@ -1,0 +1,27 @@
+{
+  "name": "conference-service",
+  "version": "1.0.0",
+  "description": "Meeting microservice (Node.js / Express) - hello endpoint + Swagger, logic to be completed by students",
+  "main": "src/server.js",
+  "scripts": {
+    "start": "node src/server.js",
+    "dev": "node --watch src/server.js",
+    "test": "node --test test/"
+  },
+  "engines": {
+    "node": ">=18"
+  },
+  "keywords": [
+    "microservice",
+    "express",
+    "swagger",
+    "conference"
+  ],
+  "license": "MIT",
+  "dependencies": {
+    "eureka-js-client": "^4.5.0",
+    "express": "^5.2.1",
+    "swagger-jsdoc": "^6.3.0",
+    "swagger-ui-express": "^5.0.1"
+  }
+}

@@ -1,0 +1,64 @@
+server:
+  port: 8080
+
+spring:
+  application:
+    name: api-gateway
+  cloud:
+    gateway:
+      discovery:
+        locator:
+          enabled: true
+          lower-case-service-id: true
+      routes:
+        - id: traveler-service
+          uri: lb://TRAVELER-SERVICE
+          predicates:
+            - Path=/api/travelers/**
+        - id: flight-service
+          uri: lb://FLIGHT-SERVICE
+          predicates:
+            - Path=/api/flights/**
+        - id: booking-service
+          uri: lb://BOOKING-SERVICE
+          predicates:
+            - Path=/api/bookings/**
+        - id: payment-service
+          uri: http://localhost:3000
+          predicates:
+            - Path=/api/payments/**
+        - id: notification-service
+          uri: http://localhost:8084
+          predicates:
+            - Path=/api/notifications/**
+      globalcors:
+        cors-configurations:
+          '[/**]':
+            allowedOrigins: "http://localhost:4200"
+            allowedMethods:
+              - GET
+              - POST
+              - PUT
+              - DELETE
+              - OPTIONS
+            allowedHeaders: "*"
+            allowCredentials: true
+
+eureka:
+  client:
+    service-url:
+      defaultZone: http://localhost:8761/eureka/
+    register-with-eureka: true
+    fetch-registry: true
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,gateway
+
+# Logs de routage demandés dans le PDF (Partie 3.2.b)
+logging:
+  level:
+    org.springframework.cloud.gateway: DEBUG
+    reactor.netty.http.client: DEBUG
