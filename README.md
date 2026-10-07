@@ -1,6 +1,6 @@
 <div align="center">
 
-# 🌍 Nomadix
+# 🌍 Nomadis
 
 **Plateforme de Réservation de Voyages en Architecture Microservices**  
 *Projet final du module Applications Web Distribuées (MT-41) - ESPRIT 2026/2027*
