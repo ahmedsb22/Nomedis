@@ -49,7 +49,8 @@ CREATE INDEX idx_job_available ON job (available);
 INSERT INTO category (name, description) VALUES
   ('Software Development', 'Backend, frontend and mobile development jobs'),
   ('Data',                 'Data engineering, data science and BI'),
-  ('DevOps',               'Cloud, CI/CD and infrastructure');
+  ('DevOps',               'Cloud, CI/CD and infrastructure'),
+  ('iot','Internet of things ');
 
 INSERT INTO job (name, description, available, `date`, category_id) VALUES
   ('Java Spring Boot Developer', 'Build microservices with Spring Boot and Spring Cloud', TRUE,  '2026-09-01', 1),
