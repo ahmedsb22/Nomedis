@@ -24,3 +24,10 @@ replay_pid*
 # Fichiers de contexte (trop lourds)
 project_context.txt
 project_structure.txt
+# Artefacts locaux (jamais a committer)
+*.bak
+*.bak3
+context3.txt
+contexte2.txt
+structure2.txt
+backend/launchers/
