@@ -2,14 +2,14 @@
 
 const client = new Eureka({
   instance: {
-    app: 'MEETING-SERVICE',
+    app: 'CONFERENCE-SERVICE',
     hostName: 'localhost',
     ipAddr: '127.0.0.1',
     port: {
       '$': 3000,
       '@enabled': 'true'
     },
-    vipAddress: 'MEETING-SERVICE',
+    vipAddress: 'CONFERENCE-SERVICE',
     dataCenterInfo: {
       '@class': 'com.netflix.appinfo.InstanceInfo$DefaultDataCenterInfo',
       name: 'MyOwn'

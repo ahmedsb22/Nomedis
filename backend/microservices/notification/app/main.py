@@ -1,4 +1,4 @@
-﻿"""Notification microservice - entry point.
+"""Notification microservice - entry point.
 
 Run:  uvicorn app.main:app --reload --port 8084
   or: python -m app.main
@@ -62,3 +62,23 @@ def read_root():
 @app.get("/health")
 def health_check():
     return {"status": "UP"}
+@app.get("/info")
+def get_service_info():
+    return {
+        "name": "Notification Service",
+        "description": "Nomadix Notification Microservice",
+        "version": "1.0.0",
+        "port": 8084,
+        "status": "UP"
+    }
+
+@app.get("/health")
+def get_health():
+    return {"status": "healthy"}
+
+# NOMADIX-GATEWAY-COMPAT (ajout automatique)
+try:
+    from app.routers import gateway_compat  # noqa: E402
+    app.include_router(gateway_compat.router)
+except Exception as _compat_err:
+    print("[WARN] gateway_compat non charge:", _compat_err)
