@@ -1,0 +1,109 @@
+================================================================================
+FICHIER wiw070 - CONTEXTE DE DEMARRAGE POUR L'IA (projet NOMADIX)
+Colle ce fichier au debut de chaque nouvelle conversation.
+Pour les taches touchant du code precis : joindre AUSSI wiw33.txt (capture totale).
+Mis a jour : 2026-10-14
+================================================================================
+
+## 1. IDENTITE
+- Nomadix : plateforme de reservation de voyages. Projet final MT-41 (ESPRIT).
+- Repo : https://github.com/ahmedsb22/Nomedis (branche main unique)
+- Local : C:\Users\user\Downloads\AWD-Training-main\AWD-Training-main\AWD-Training
+- Machine : Windows, PowerShell 5.1 (PAS de ternaire ? 1:2 !), Java 22 runtime
+  (release 17), Maven, XAMPP MySQL (root, sans mdp, :3306), hostname "asus".
+
+## 2. ARCHITECTURE (prouvee fonctionnelle)
+| Service | Ports | Techno | Base MySQL |
+| Eureka | 8761 | Spring Boot 3.2.4 | - |
+| API Gateway | 8089 | Spring Cloud Gateway (WebFlux/Netty, YML !) | - |
+| traveler-service | 8081 + 9081 | Java | traveler_db |
+| flight-service | 8082 + 9082 | Java | nomadix_flight_db |
+| booking-service | 8083 + 9083 | Java | nomadix_booking_db |
+| notification | 8084 | Python/FastAPI (stockage MEMOIRE) | - |
+| conference | 3000 | Node/Express | - |
+| Angular | 4200 | frontEnd/NomadixWeb | - |
+
+Interconnexions :
+- Gateway routes /api/** -> lb:// (routes dans application.yml ET en Java
+  dans GatewayApplication.java - double definition, notification/conference
+  en lb:// egalement)
+- OpenFeign booking->flight : @FeignClient(name="flight-service"),
+  BookingController POST @RequestParam (?travelerId=&flightId=),
+  BookingService "Saga simplifiee" (verifie availableSeats, CONFIRMED)
+- OpenFeign traveler->flight (atelier) : FlightClient(name="FLIGHT-SERVICE"),
+  FlightDTO, FavoriteFlightService, FavoriteFlightController
+  (GET/POST /api/travelers/{id}/favorite-flights[/{flightId}]),
+  entite Traveler + @ElementCollection Set<Long> favoriteFlights
+  (table traveler_favorite_flights, IDs seulement)
+- Service avance : Smart Traveler Profiling Engine (package profiling,
+  8 classes + test) : aspect AOP sur *Repository+.save() -> moteur 9 regles
+  /100 -> segments PLATINUM/GOLD/SILVER/BRONZE + flags anomalies.
+  Endpoints /api/travelers/profiles[/top|segments|statistics|risky|{id}|{id}/recompute]
+- LB RoundRobin PROUVE (+6/+6 compteurs), failover demontre.
+- Tests : start-and-verify-all 100% ; test-openfeign-suite-v2 95%
+  (seul WARN = totalPrice null, cause identifiee voir section 4).
+
+## 3. CONVENTIONS OBLIGATOIRES POUR TOUT SCRIPT FOURNI
+1. Scripts en FICHIERS .ps1 (l'utilisateur execute avec
+   powershell -ExecutionPolicy Bypass -File .\x.ps1). Ne jamais supposer
+   un collage ligne par ligne.
+2. PowerShell 5.1 STRICT (pas de ternaire, pas de ??).
+3. Idempotent : detection avant modification, .bak, PREUVE par relecture.
+4. Ecriture fichiers : [System.IO.File]::WriteAllText + UTF8Encoding $false
+   + normalisation LF. JAMAIS Add-Content en cascade (a casse le README).
+5. Kill processus PAR PORT (Get-NetTCPConnection -> Stop-Process Id).
+6. Health-checks reels (Invoke-WebRequest 200) plutot que Start-Sleep.
+7. Apres modif Java : mvn -q compile + affichage des 10 erreurs si echec.
+8. Ordre demarrage : MySQL -> Eureka -> services (x2 si lanceurs) ->
+   Gateway EN DERNIER -> Python/Node -> Angular.
+
+## 4. PIEGES CONNUS + CAUSES EXACTES (ne pas refaire)
+- 2 instances = instance-id UNIQUE sinon ecrasement (UP(1) avec 2 process).
+  Technique : 1 mvn package puis java -jar x2 (--server.port +
+  --eureka.instance.instance-id + hostname=localhost). Lanceurs dans
+  backend\launchers\ ; si target/ vide -> "Unable to access jarfile"
+  -> recompiler + regenerer les lanceurs.
+- Dependances inserees avant le DERNIER </dependencies> finissent dans
+  dependencyManagement si le pom en a un -> "package does not exist".
+  VERIFIER la position dans le pom.
+- POYMS actuels a nettoyer (vu dans wiw33) : actuator duplique dans
+  dependencies+management (booking, eureka-server) ; loadbalancer dans
+  le management du gateway (marche par transitif, fragile) ;
+  discovery/pom.xml a {spring-cloud.version} sans $.
+- ddl-auto=update NE CORRIGE PAS une table incompatible : DROP puis JPA recreer.
+- Bases reelles : nomadix_flight_db / nomadix_booking_db (PAS flight_db).
+- URLs pieges : /actuator/gateway/routeS (PLURIEL) ; /api/notifications/
+  (avec et sans slash geres) ; hostname Eureka "asus" par defaut
+  (corrige par eureka.instance.hostname=localhost).
+- Parsing PS des listes JSON (flights, favoris) : propriétés-tableaux ->
+  utiliser une fonction Get-List qui reconstruit les objets
+  (cf test-openfeign-suite-v2.ps1).
+- BUG CONNU NON ENCORE CORRIGE : totalPrice null car booking/FlightDTO a
+  origin/destination/price alors que le vrai Flight = flightNumber/
+  departureCity/arrivalCity/departureDate/availableSeats SANS price.
+  FIX : aligner le DTO (copier celui du traveler-service) + ajouter un champ
+  price a l'entite Flight (ou prix par defaut).
+- Vol inexistant -> 500 (pas 404) : catcher FeignException.NotFound ->
+  ResponseStatusException(404) dans FavoriteFlightService.
+- CORS defini 2x (yml globalcors + CorsConfig.java) : redondant mais OK.
+- Git : rebase ouvert -> git rebase --abort ; pull --rebase seulement
+  working tree clean ; jamais de params PS sur git. README.md : backup
+  .safe.bak avant operation. .gitattributes (* text=auto eol=lf) present.
+- Fichiers a nettoyer : hs_err_pid*.log / replay_pid*.log dans flight-service
+  (~1 Mo), *.bak dans gateway.
+
+## 5. ETAT GIT
+Derniers commits : progress4, update docs, gitignore artefacts, fc88e3d.
+progress5 (atelier OpenFeign) pret a committer. Sauvegardes README.md.safe.bak.
+
+## 6. PERSPECTIVES (priorite module)
+1. RabbitMQ (seance 8) : NON installe (choco install rabbitmq + Erlang ;
+   rabbitmq-plugins enable rabbitmq_management ; UI :15672 guest/guest).
+2. Fix totalPrice (DTO + champ price) et 404 propre Feign.
+3. Resilience4j (circuit breaker sur FlightClient).
+4. Keycloak/JWT. 5. Docker compose (AA8). 6. Config Server, Zipkin.
+
+## 7. FICHIERS DOCUMENTATION
+documentation/ : 3 diagrammes PNG. Racine : rev.md, wiw.md, GUIDE.md,
+wiw33.txt (capture totale, a joindre si tache sur code precis).
+================================================================================

@@ -1,0 +1,2 @@
+Write-Host 'FLIGHT-SERVICE instance 1 :8082' -ForegroundColor Yellow
+java -Xms64m -Xmx256m -jar 'C:\Users\user\Downloads\AWD-Training-main\AWD-Training-main\AWD-Training\backend\microservices\flight-service\target\flight-service-0.0.1-SNAPSHOT.jar' --server.port=8082 --eureka.instance.instance-id=flight-service-8082 --eureka.instance.hostname=localhost --eureka.instance.prefer-ip-address=false

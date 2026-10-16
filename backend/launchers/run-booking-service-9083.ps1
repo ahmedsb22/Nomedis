@@ -1,0 +1,2 @@
+Write-Host 'BOOKING-SERVICE instance 2 :9083' -ForegroundColor Yellow
+java -Xms64m -Xmx256m -jar 'C:\Users\user\Downloads\AWD-Training-main\AWD-Training-main\AWD-Training\backend\microservices\booking-service\target\booking-service-0.0.1-SNAPSHOT.jar' --server.port=9083 --eureka.instance.instance-id=booking-service-9083 --eureka.instance.hostname=localhost --eureka.instance.prefer-ip-address=false

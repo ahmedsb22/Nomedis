@@ -1,0 +1,66 @@
+﻿================================================================================
+CONTEXTE COMPLET DU PROJET NOMADIX
+Généré le: 2026-10-08 11:01:41
+Projet: AWD-Training - Microservices Architecture
+================================================================================
+
+CONTENU:
+- Structure complète du projet
+- Code source de tous les microservices
+- Configurations (Spring Boot, Angular, Docker, etc.)
+- Documentation et README
+
+MICROSERVICES INCLUS:
+- Eureka Server (Service Discovery)
+- API Gateway (Spring Cloud Gateway)
+- Traveler Service (Spring Boot + JPA)
+- Flight Service (Spring Boot + JPA)
+- Booking Service (Spring Boot + OpenFeign)
+- Conference Service (Node.js + Express)
+- Notification Service (Python + FastAPI)
+- Frontend Angular (NomadixWeb)
+
+================================================================================
+
+
+================================================================================
+RÉSUMÉ DE LA GÉNÉRATION
+================================================================================
+
+Date de génération: 2026-10-08 11:01:52
+Nombre de fichiers inclus: 0
+Nombre d'erreurs: 0
+Taille du fichier généré: 0.000821113586425781 MB
+
+STRUCTURE DU PROJET:
+--------------------
+backend/
+├── discovery/
+│   └── eureka-server/          # Service de découverte (Eureka)
+├── gateway/                    # API Gateway (Spring Cloud Gateway)
+── microservices/
+    ├── traveler-service/       # Service des voyageurs (Port 8081)
+    ├── flight-service/         # Service des vols (Port 8082)
+    ├── booking-service/        # Service des réservations (Port 8083)
+    ├── conference-service/     # Service des conférences (Node.js)
+    └── notification/           # Service de notification (Python/FastAPI)
+
+frontEnd/
+└── NomadixWeb/                 # Application Angular (Port 4200)
+
+documentation/                  # Documentation du projet
+
+ARCHITECTURE TECHNIQUE:
+-----------------------
+- Backend: Spring Boot 3.2.4, Spring Cloud 2023.0.1
+- Frontend: Angular 17+
+- Base de données: MySQL, H2, MongoDB
+- Message Broker: RabbitMQ/Kafka
+- Service Discovery: Eureka Server
+- API Gateway: Spring Cloud Gateway
+- Authentification: Keycloak (prévu)
+- Containerisation: Docker
+
+================================================================================
+FIN DU FICHIER DE CONTEXTE
+================================================================================
