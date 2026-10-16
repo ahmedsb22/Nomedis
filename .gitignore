@@ -31,3 +31,11 @@ context3.txt
 contexte2.txt
 structure2.txt
 backend/launchers/
+
+# ---- dumps et fichiers de contexte locaux (ne jamais committer) ----
+wiw*.txt
+contexte*.txt
+context*.txt
+structure*.txt
+*.bak
+*.log
