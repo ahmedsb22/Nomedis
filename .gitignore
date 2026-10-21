@@ -1,4 +1,4 @@
-﻿# Builds & Compilations
+# Builds & Compilations
 **/target/
 **/build/
 *.class
@@ -39,3 +39,19 @@ context*.txt
 structure*.txt
 *.bak
 *.log
+# === Fichiers locaux Nomadix (a ne jamais pousser) ===
+*.ps1
+!backend/launchers/*.ps1
+*.txt
+!**/requirements*.txt
+*.bak-nomadix*
+logs/
+node_modules/
+dist/
+.angular/
+coverage/
+target/
+.DS_Store
+Thumbs.db
+.env
+.env.local

@@ -30,4 +30,11 @@ public class Traveler {
     
     public String getRole() { return role; }
     public void setRole(String role) { this.role = role; }
+
+    @ElementCollection
+    private java.util.Set<Long> favoriteFlights = new java.util.HashSet<>();
+
+    public java.util.Set<Long> getFavoriteFlights() { return this.favoriteFlights; }
+
+    public void setFavoriteFlights(java.util.Set<Long> favoriteFlights) { this.favoriteFlights = favoriteFlights; }
 }

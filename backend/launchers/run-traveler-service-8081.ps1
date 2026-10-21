@@ -1,2 +1,0 @@
-Write-Host 'TRAVELER-SERVICE instance 1 :8081' -ForegroundColor Yellow
-java -Xms64m -Xmx256m -jar 'C:\Users\user\Downloads\AWD-Training-main\AWD-Training-main\AWD-Training\backend\microservices\traveler-service\target\traveler-service-0.0.1-SNAPSHOT.jar' --server.port=8081 --eureka.instance.instance-id=traveler-service-8081 --eureka.instance.hostname=localhost --eureka.instance.prefer-ip-address=false

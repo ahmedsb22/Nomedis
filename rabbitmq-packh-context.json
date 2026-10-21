@@ -1,0 +1,21 @@
+{
+    "rabbit":  {
+                   "queue":  "notification.events",
+                   "exchange":  "nomadix.events"
+               },
+    "traveler":  {
+                     "port":  8081,
+                     "path":  "C:\\Users\\user\\Downloads\\AWD-Training-main\\AWD-Training-main\\AWD-Training\\backend\\microservices\\traveler-service",
+                     "package":  "com.nomadix.traveler"
+                 },
+    "flight":  {
+                   "port":  8082,
+                   "path":  "C:\\Users\\user\\Downloads\\AWD-Training-main\\AWD-Training-main\\AWD-Training\\backend\\microservices\\flight-service",
+                   "package":  "com.nomadix.flight"
+               },
+    "generated":  "2026-10-21 14:41:18",
+    "notification":  {
+                         "path":  "C:\\Users\\user\\Downloads\\AWD-Training-main\\AWD-Training-main\\AWD-Training\\backend\\microservices\\notification",
+                         "port":  8084
+                     }
+}
