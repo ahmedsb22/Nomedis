@@ -2,6 +2,7 @@ const express = require('express');
 const swaggerUi = require('swagger-ui-express');
 const openapiSpec = require('./config/swagger');
 const meetingRoutes = require('./routes/meeting.routes');
+const conferenceRoutes = require('./routes/conference.routes');
 
 const app = express();
 
@@ -13,6 +14,7 @@ app.use('/swagger-ui', swaggerUi.serve, swaggerUi.setup(openapiSpec));
 
 // ---- API routes ----
 app.use('/api/meetings', meetingRoutes);
+app.use('/api/conferences', conferenceRoutes);
 
 // ---- 404 for unknown routes ----
 app.use((req, res) => {
