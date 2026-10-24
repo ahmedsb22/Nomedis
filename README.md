@@ -28,7 +28,7 @@
 
 ##  À propos du projet
 
-Dans le cadre du module **MT-41**, nous avons développé **Nomadix**, une plateforme de réservation de vols et d'hôtels. 
+Dans le cadre du module **MT-41**, nous avons développé **Nomadix**, une plateforme de réservation de vols, de gestion des voyageurs et de conférences.
 
 L'objectif principal n'était pas seulement de faire une application de réservation, mais de relever le défi technique d'une **architecture distribuée** : gérer des stocks limités (places d'avion) et assurer la cohérence des données même en cas de pic de trafic ou d'échec d'une étape (ex: annulation automatique si le paiement échoue, via une ébauche de Pattern Saga).
 
@@ -43,8 +43,8 @@ Pour garantir un développement parallèle efficace, nous avons réparti les res
 | Membre | Rôle principal | Services & Composants sous sa responsabilité |
 | :--- | :--- | :--- |
 | **Ahmed** (`ahmedsb22`) | Architecture & Intégration | API Gateway, Eureka Server, **Booking Service** (Orchestration), Configuration Git/CI. |
-| **Sami** (`samibaazaoui`) | Cœur Métier & Frontend | **Flight Service** (Gestion des stocks), **Payment Service** (Node.js), Interface Angular. |
-| **Mohamed Hazem** (`Mohamedhazem.Amor`) | Services Support & Qualité | **User Service**, **Notification Service** (Python/FastAPI), Tests d'intégration, README. |
+| **Sami** (`samibaazaoui`) | Cœur Métier & Frontend | **Flight Service** (Gestion des stocks), **Conference Service** (Node.js), Interface Angular. |
+| **Mohamed Hazem** (`Mohamedhazem.Amor`) | Services Support & Qualité | **Traveler Service** (voyageurs, favoris, profiling), **Notification Service** (Python/FastAPI), Tests d'intégration, README. |
 
 ---
 
@@ -52,10 +52,10 @@ Pour garantir un développement parallèle efficace, nous avons réparti les res
 
 Nous avons suivi les bonnes pratiques du module pour garantir un découpage propre et maintenable :
 
-- **Database-per-service** : Règle d'or respectée. Chaque microservice a sa propre base MySQL (`user_db`, `flight_db`, etc.). Aucune jointure SQL n'est faite entre les services ; les liens se font uniquement via des identifiants (ex: `flightId` dans la réservation).
+- **Database-per-service** : Règle d'or respectée. Chaque microservice a sa propre base MySQL (`nomadix_traveler_db`, `nomadix_flight_db`, `nomadix_booking_db`). Aucune jointure SQL n'est faite entre les services ; les liens se font uniquement via des identifiants (ex: `flightId` dans la réservation).
 - **Service Discovery (Eureka)** : Pour éviter de coder les URLs en dur. La Gateway interroge Eureka pour savoir où router les requêtes, ce qui facilite l'ajout futur de nouvelles instances (scalabilité).
-- **API Gateway (Spring Cloud Gateway)** : Point d'entrée unique (port 8080). Elle gère le routage dynamique (`lb://`) et la configuration CORS pour autoriser notre frontend Angular.
-- **Stack Polyglotte** : Nous avons volontairement utilisé **Java/Spring Boot** pour le cœur métier, **Node.js** pour le service de paiement (léger et rapide pour les I/O), et **Python/FastAPI** pour les notifications, afin de démontrer notre capacité à intégrer des technologies hétérogènes.
+- **API Gateway (Spring Cloud Gateway)** : Point d'entrée unique (**port 8089**). Elle gère le routage dynamique (`lb://`) et la configuration CORS pour autoriser notre frontend Angular. Le frontend ne connaît qu'une seule adresse : la Gateway.
+- **Stack Polyglotte** : Nous avons volontairement utilisé **Java/Spring Boot** pour le cœur métier, **Node.js** pour le service de conférences (léger et rapide pour les I/O), et **Python/FastAPI** pour les notifications, afin de démontrer notre capacité à intégrer des technologies hétérogènes.
 
 >  **Documentation visuelle** : Les diagrammes d'architecture (logique, physique) et le diagramme de classes UML sont disponibles dans le dossier [`documentation/`](documentation/).
 
@@ -66,12 +66,12 @@ Nous avons suivi les bonnes pratiques du module pour garantir un découpage prop
 | Service | Port | Base de données | Rôle clé | Lien Swagger |
 | :--- | :---: | :--- | :--- | :--- |
 | **Eureka Server** | 8761 | - | Registre des services | [Dashboard](http://localhost:8761) |
-| **API Gateway** | 8080 | - | Routage, CORS, Point d'entrée | - |
-| **User Service** | 8081 | `user_db` | Gestion des comptes et rôles (ADMIN/USER) | [Swagger](http://localhost:8081/swagger-ui.html) |
-| **Flight Service** | 8082 | `flight_db` | Catalogue des vols et gestion du stock (`availableSeats`) | [Swagger](http://localhost:8082/swagger-ui.html) |
-| **Booking Service** | 8083 | `booking_db` | Création des réservations et orchestration du flux | [Swagger](http://localhost:8083/swagger-ui.html) |
-| **Payment Service** | 3000 | `payment_db` | Simulation de transaction et génération de facture | [Docs](http://localhost:3000/api-docs) |
-| **Notification Service**| 8084 | - | Envoi de confirmations (Email/SMS simulés) | [Docs](http://localhost:8084/docs) |
+| **API Gateway** | 8089 | - | Routage, CORS, Point d'entrée | [Routes](http://localhost:8089/actuator/gateway/routes) |
+| **Traveler Service** | 8081 | `nomadix_traveler_db` | Voyageurs, favoris et Smart Profiling (score/segments) | [Swagger](http://localhost:8081/swagger-ui.html) |
+| **Flight Service** | 8082 | `nomadix_flight_db` | Catalogue des vols et gestion du stock (`availableSeats`) | [Swagger](http://localhost:8082/swagger-ui.html) |
+| **Booking Service** | 8083 | `nomadix_booking_db` | Réservations et orchestration (OpenFeign + Circuit Breaker) | [Swagger](http://localhost:8083/swagger-ui.html) |
+| **Conference Service** | 3000 | - (mémoire) | CRUD des conférences | [Swagger](http://localhost:3000/api-docs) |
+| **Notification Service**| 8084 | - (mémoire) | Envoi de confirmations + consommateur RabbitMQ | [Swagger](http://localhost:8084/swagger-ui) |
 
 ---
 
@@ -85,9 +85,10 @@ Assurez-vous d'avoir installé sur votre machine :
 - **XAMPP** (MySQL doit tourner sur le port `3306` avec l'utilisateur `root` et mot de passe vide).
 
 ### 2. Initialisation des bases de données
-1. Lancez Apache et MySQL depuis le panneau de contrôle XAMPP.
-2. Ouvrez phpMyAdmin (`http://localhost/phpmyadmin`).
-3. Exécutez le script SQL présent à la racine du projet : [`setup_nomadix_mysql.sql`](setup_nomadix_mysql.sql). *(Il créera automatiquement les 4 bases de données nécessaires).*
+1. Lancez MySQL depuis le panneau de contrôle XAMPP (`root`, mot de passe vide).
+2. Aucun script SQL n'est nécessaire : chaque service crée sa base au premier démarrage
+   (`createDatabaseIfNotExist=true`) et Hibernate génère les tables (`ddl-auto=update`).
+   Les trois bases attendues sont `nomadix_traveler_db`, `nomadix_flight_db` et `nomadix_booking_db`.
 
 ### 3. Lancement du Backend 
 Ouvrez un terminal séparé pour chaque étape :
@@ -101,22 +102,29 @@ cd backend/gateway
 mvn spring-boot:run
 
 # Étape C : Les microservices Java (dans 3 terminaux différents)
-cd backend/microservices/user-service && mvn spring-boot:run
+cd backend/microservices/traveler-service && mvn spring-boot:run
 cd backend/microservices/flight-service && mvn spring-boot:run
 cd backend/microservices/booking-service && mvn spring-boot:run
 
-# Étape D : Le service Node.js (Paiement)
-cd backend/microservices/payment-service
+# Étape D : Le service Node.js (Conférences)
+cd backend/microservices/conference-service
 npm install
 npm start
 
 # Étape E : Le service Python (Notification)
-cd backend/microservices/notification-service
-# Créez et activez l'environnement virtuel
-python -m venv venv
-# Sous Windows : venv\Scripts\activate
-# Sous Mac/Linux : source venv/bin/activate
-pip install -r requirements.txt
-python -m uvicorn app.main:app --reload --port 8084
+cd backend/microservices/notification
+py -m pip install -r requirements.txt
+py -m uvicorn app.main:app --reload --port 8084
+```
+
+### 4. Lancement du Frontend
+```bash
+cd frontEnd/NomadixWeb
+npm install
+npm start   # ng serve --port 4200 --proxy-config proxy.conf.json
+```
+
+Le proxy de développement envoie **toutes** les requêtes `/api/**` vers la Gateway
+(`http://localhost:8089`) : le frontend n'appelle jamais un microservice en direct.
 
 

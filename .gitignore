@@ -48,6 +48,12 @@ structure*.txt
 logs/
 node_modules/
 dist/
+
+# Sauvegardes generees par les outils de reparation
+*.bak-v17
+*.v4bak
+*.orig
+_quarantine-nomadix/
 .angular/
 coverage/
 target/
