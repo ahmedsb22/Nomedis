@@ -13,7 +13,11 @@ public class Booking {
     private BigDecimal totalPrice;
     private LocalDateTime createdAt;
     @PrePersist
-    protected void onCreate() { createdAt = LocalDateTime.now(); status = "PENDING"; }
+    protected void onCreate() {
+        if (createdAt == null) { createdAt = LocalDateTime.now(); }
+        // Ne pas ecraser un statut deja fixe par le service (ex: CONFIRMED).
+        if (status == null) { status = "PENDING"; }
+    }
     // Getters and Setters
     public Long getId() { return id; } public void setId(Long id) { this.id = id; }
     public Long getTravelerId() { return travelerId; } public void setTravelerId(Long travelerId) { this.travelerId = travelerId; }

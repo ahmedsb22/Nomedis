@@ -1,8 +1,11 @@
 package com.nomadix.booking.dto;
 import java.math.BigDecimal;
+import com.fasterxml.jackson.annotation.JsonProperty;
 public class FlightDTO {
     private Long id;
+    @JsonProperty("departureCity")
     private String origin;
+    @JsonProperty("arrivalCity")
     private String destination;
     private int availableSeats;
     private BigDecimal price;

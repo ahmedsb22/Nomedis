@@ -8,6 +8,8 @@ public class Flight {
     @Column(name = "arrival_city", nullable = false) private String arrivalCity;
     @Column(nullable = false) private LocalDate departureDate;
     @Column(nullable = false) private int availableSeats;
+    @Column(name = "price")
+    private java.math.BigDecimal price;
     public Flight() {}
     // Getters & Setters
     public Long getId() { return id; } public void setId(Long id) { this.id = id; }
@@ -15,5 +17,6 @@ public class Flight {
     public String getDepartureCity() { return departureCity; } public void setDepartureCity(String d) { this.departureCity = d; }
     public String getArrivalCity() { return arrivalCity; } public void setArrivalCity(String a) { this.arrivalCity = a; }
     public LocalDate getDepartureDate() { return departureDate; } public void setDepartureDate(LocalDate d) { this.departureDate = d; }
-    public int getAvailableSeats() { return availableSeats; } public void setAvailableSeats(int s) { this.availableSeats = s; }
+    public int getAvailableSeats() { return availableSeats; }
+    public java.math.BigDecimal getPrice() { return price == null ? java.math.BigDecimal.ZERO : price; } public void setPrice(java.math.BigDecimal p) { this.price = p; } public void setAvailableSeats(int s) { this.availableSeats = s; }
 }

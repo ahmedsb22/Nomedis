@@ -51,6 +51,11 @@
         <artifactId>spring-boot-starter-actuator</artifactId>
         <version>3.2.4</version>
     </dependency>
+        <!-- circuit breaker pour les clients OpenFeign -->
+        <dependency>
+            <groupId>org.springframework.cloud</groupId>
+            <artifactId>spring-cloud-starter-circuitbreaker-resilience4j</artifactId>
+        </dependency>
 </dependencies>
     <dependencyManagement>
         <dependencies>

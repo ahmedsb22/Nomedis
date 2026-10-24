@@ -47,4 +47,15 @@ public class FavoriteFlightService {
         traveler.getFavoriteFlights().add(flightId);       // Set = pas de doublons
         travelerRepository.save(traveler);                 // -> l'aspect AOP reprofila aussi ! (bonus demo)
     }
+
+    public boolean removeFavoriteFlight(Long travelerId, Long flightId) {
+        var traveler = travelerRepository.findById(travelerId)
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND,
+                        "Voyageur introuvable : " + travelerId));
+        boolean removed = traveler.getFavoriteFlights().remove(flightId);
+        if (removed) {
+            travelerRepository.save(traveler);
+        }
+        return removed;
+    }
 }

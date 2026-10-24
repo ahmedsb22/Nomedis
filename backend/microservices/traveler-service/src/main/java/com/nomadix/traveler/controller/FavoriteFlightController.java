@@ -33,4 +33,14 @@ public class FavoriteFlightController {
         favoriteFlightService.saveFavoriteFlight(id, flightId);
         return ResponseEntity.ok("Vol " + flightId + " ajoute aux favoris du voyageur " + id + ".");
     }
+
+    @Operation(summary = "Retirer un vol des favoris")
+    @DeleteMapping("/{id}/favorite-flights/{flightId}")
+    public ResponseEntity<String> removeFavoriteFlight(@PathVariable Long id, @PathVariable Long flightId) {
+        boolean removed = favoriteFlightService.removeFavoriteFlight(id, flightId);
+        if (!removed) {
+            return ResponseEntity.notFound().build();
+        }
+        return ResponseEntity.ok("Vol " + flightId + " retire des favoris du voyageur " + id + ".");
+    }
 }

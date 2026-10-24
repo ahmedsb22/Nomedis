@@ -12,7 +12,7 @@ import java.util.List;
  * name = nom Eureka (pas d'URL en dur) : Feign resout via Eureka
  * et repartit entre les instances grace au LoadBalancer.
  */
-@FeignClient(name = "FLIGHT-SERVICE")
+@FeignClient(name = "FLIGHT-SERVICE", fallbackFactory = FlightClientFallbackFactory.class)
 public interface FlightClient {
 
     @GetMapping("/api/flights/{id}")
