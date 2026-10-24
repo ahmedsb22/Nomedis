@@ -1,4 +1,4 @@
-﻿import { Injectable } from '@angular/core';
+import { Injectable } from '@angular/core';
 import { HttpClient } from '@angular/common/http';
 import { Observable } from 'rxjs';
 
@@ -7,7 +7,7 @@ import { Observable } from 'rxjs';
 })
 export class FlightService {
   // URL de la API Gateway
-  private apiUrl = 'http://localhost:8089/api/flights';
+  private apiUrl = '/api/flights';
 
   constructor(private http: HttpClient) { }
 
