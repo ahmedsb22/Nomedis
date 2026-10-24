@@ -31,8 +31,8 @@ public class GatewayIndexRouter {
             routes.put("profiling",     "/api/travelers/profiles/**  (service avance)");
             routes.put("flights",       "/api/flights/**        -> lb://FLIGHT-SERVICE (8082)");
             routes.put("bookings",      "/api/bookings/**       -> lb://BOOKING-SERVICE (8083)");
-            routes.put("notifications", "/api/notifications/**  -> http://localhost:8084 (FastAPI)");
-            routes.put("conferences",   "/api/conferences/**    -> http://localhost:3000 (Node)");
+            routes.put("notifications", "/api/notifications/**  -> lb://NOTIFICATION-SERVICE (8084)");
+            routes.put("conferences",   "/api/conferences/**    -> lb://CONFERENCE-SERVICE (3000)");
             body.put("routes", routes);
             body.put("eureka", "http://localhost:8761");
             body.put("routesActuator", "/actuator/gateway/routes");

@@ -14,24 +14,25 @@ spring:
         - id: traveler-service
           uri: lb://TRAVELER-SERVICE
           predicates:
-            - Path=/api/travelers/**
+            - Path=/api/travelers,/api/travelers/**
         - id: flight-service
           uri: lb://FLIGHT-SERVICE
           predicates:
-            - Path=/api/flights/**
+            - Path=/api/flights,/api/flights/**
         - id: booking-service
           uri: lb://BOOKING-SERVICE
           predicates:
-            - Path=/api/bookings/**
+            - Path=/api/bookings,/api/bookings/**
         - id: notification-service
           uri: lb://NOTIFICATION-SERVICE
           predicates:
-            - Path=/api/notifications/**
+            - Path=/api/notifications,/api/notifications/**
         - id: conference-service
           uri: lb://CONFERENCE-SERVICE
           predicates:
-            - Path=/api/conferences/**
+            - Path=/api/conferences,/api/conferences/**
       globalcors:
+        add-to-simple-url-handler-mapping: true
         cors-configurations:
           '[/**]':
             allowedOrigins:
@@ -40,10 +41,19 @@ spring:
               - GET
               - POST
               - PUT
+              - PATCH
               - DELETE
               - OPTIONS
-            allowedHeaders: "*"
+            allowedHeaders:
+              - Authorization
+              - Content-Type
+              - Accept
+              - Origin
+              - X-Requested-With
+            exposedHeaders:
+              - Authorization
             allowCredentials: true
+            maxAge: 3600
 
 eureka:
   instance:
@@ -60,7 +70,7 @@ management:
   endpoints:
     web:
       exposure:
-        include: "*"
+        include: "health,info,metrics,prometheus,gateway"
   endpoint:
     health:
       show-details: always
