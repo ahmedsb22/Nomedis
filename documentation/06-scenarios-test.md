@@ -8,7 +8,7 @@ ou Linux) et supposent la stack Docker demarree.
 
 ```bash
 cd <racine du projet>
-docker compose up -d --build      # 10 conteneurs
+docker compose up -d --build      # 12 conteneurs
 docker compose ps                 # tout doit etre "Up" (mysql/rabbitmq/eureka/keycloak "healthy")
 ```
 
