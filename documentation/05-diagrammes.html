@@ -1,0 +1,715 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Nomadix - Diagrammes d'architecture</title>
+<style>
+  :root {
+    --navy: #0f2a4a;
+    --navy-2: #173f6b;
+    --ink: #14263d;
+    --muted: #5b6675;
+    --line: #c9d3e0;
+    --bg: #eef2f8;
+    --card: #ffffff;
+    --java-fill: #e8f0fb;
+    --java-line: #2b5d9e;
+    --py-fill: #e7f7ee;
+    --py-line: #2e7d4f;
+    --node-fill: #fdeee0;
+    --node-line: #c26a1a;
+    --infra-fill: #eef0f3;
+    --infra-line: #5b6675;
+    --auth-fill: #f2e9fb;
+    --auth-line: #6b3fa0;
+    --client-fill: #fff6dd;
+    --client-line: #b58900;
+    --edge: #3b5b86;
+    --feign: #c26a1a;
+    --mq: #2e7d4f;
+    --dash: #7a5aa8;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    background: var(--bg);
+    color: var(--ink);
+    font-family: system-ui, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+    line-height: 1.55;
+  }
+  header {
+    background: linear-gradient(135deg, var(--navy), var(--navy-2));
+    color: #fff;
+    padding: 34px 28px 28px;
+  }
+  header h1 { margin: 0 0 6px; font-size: 26px; letter-spacing: 0.2px; }
+  header p { margin: 0; color: #c8d7ea; max-width: 900px; font-size: 14px; }
+  header code, .mono { font-family: "Cascadia Code", Consolas, monospace; font-size: 12.5px; }
+  nav {
+    position: sticky; top: 0; z-index: 5;
+    display: flex; flex-wrap: wrap; gap: 8px;
+    padding: 10px 24px;
+    background: rgba(255,255,255,0.94);
+    border-bottom: 1px solid var(--line);
+    backdrop-filter: blur(6px);
+  }
+  nav a {
+    text-decoration: none; color: var(--navy);
+    font-size: 13px; font-weight: 600;
+    padding: 6px 12px; border-radius: 999px;
+    border: 1px solid var(--line); background: #fff;
+  }
+  nav a:hover { background: #f2f6fc; }
+  main { max-width: 1240px; margin: 0 auto; padding: 26px 24px 60px; }
+  section {
+    background: var(--card);
+    border: 1px solid var(--line);
+    border-radius: 16px;
+    padding: 22px 22px 10px;
+    margin-bottom: 26px;
+    box-shadow: 0 10px 30px rgba(15, 42, 74, 0.06);
+  }
+  section h2 { margin: 0 0 4px; font-size: 19px; color: var(--navy); }
+  section > p.lead { margin: 0 0 16px; color: var(--muted); font-size: 14px; }
+  svg { width: 100%; height: auto; display: block; margin: 6px 0 14px; }
+  .caption { font-size: 13px; color: var(--muted); margin: 0 0 16px; }
+  .legend { display: flex; flex-wrap: wrap; gap: 14px; margin: 4px 0 18px; }
+  .legend span { display: inline-flex; align-items: center; gap: 7px; font-size: 12.5px; color: var(--muted); }
+  .swatch { width: 14px; height: 14px; border-radius: 4px; border: 1px solid; }
+  .w-java { background: var(--java-fill); border-color: var(--java-line); }
+  .w-py { background: var(--py-fill); border-color: var(--py-line); }
+  .w-node { background: var(--node-fill); border-color: var(--node-line); }
+  .w-infra { background: var(--infra-fill); border-color: var(--infra-line); }
+  .w-auth { background: var(--auth-fill); border-color: var(--auth-line); }
+  .w-client { background: var(--client-fill); border-color: var(--client-line); }
+  /* --- styles SVG --- */
+  .box { fill: #fff; stroke: var(--line); stroke-width: 1.5; }
+  .box-java { fill: var(--java-fill); stroke: var(--java-line); stroke-width: 1.5; }
+  .box-py { fill: var(--py-fill); stroke: var(--py-line); stroke-width: 1.5; }
+  .box-node { fill: var(--node-fill); stroke: var(--node-line); stroke-width: 1.5; }
+  .box-infra { fill: var(--infra-fill); stroke: var(--infra-line); stroke-width: 1.5; }
+  .box-auth { fill: var(--auth-fill); stroke: var(--auth-line); stroke-width: 1.5; }
+  .box-client { fill: var(--client-fill); stroke: var(--client-line); stroke-width: 1.5; }
+  .t-title { font: 600 13px system-ui, "Segoe UI", sans-serif; fill: var(--navy); }
+  .t-sub { font: 11px system-ui, "Segoe UI", sans-serif; fill: var(--muted); }
+  .t-small { font: 10.5px system-ui, "Segoe UI", sans-serif; fill: var(--muted); }
+  .t-label {
+    font: 10.5px system-ui, "Segoe UI", sans-serif;
+    fill: var(--edge);
+    paint-order: stroke;
+    stroke: #fff;
+    stroke-width: 3px;
+    stroke-linejoin: round;
+  }
+  .t-label-feign { fill: var(--feign); font: 10.5px system-ui, sans-serif; paint-order: stroke; stroke: #fff; stroke-width: 3px; }
+  .t-label-mq { fill: var(--mq); font: 10.5px system-ui, sans-serif; paint-order: stroke; stroke: #fff; stroke-width: 3px; }
+  .t-label-dash { fill: var(--dash); font: 10.5px system-ui, sans-serif; paint-order: stroke; stroke: #fff; stroke-width: 3px; }
+  .e { stroke: var(--edge); stroke-width: 1.6; fill: none; }
+  .e-feign { stroke: var(--feign); stroke-width: 1.8; fill: none; }
+  .e-mq { stroke: var(--mq); stroke-width: 1.8; fill: none; }
+  .e-dash { stroke: var(--dash); stroke-width: 1.5; fill: none; stroke-dasharray: 6 5; }
+  .e-life { stroke: #b9c6d8; stroke-width: 1.2; stroke-dasharray: 5 6; }
+  .entity { fill: #fff; stroke: #2b4a74; stroke-width: 1.6; }
+  .entity-head { fill: #eef3fa; stroke: #2b4a74; stroke-width: 1.6; }
+  .t-entity { font: 600 13px system-ui, sans-serif; fill: var(--navy); }
+  .t-attr { font: 11px "Cascadia Code", Consolas, monospace; fill: #34465f; }
+  .note { fill: #fffbe8; stroke: #d8c37a; stroke-width: 1.2; }
+  table.rel { width: 100%; border-collapse: collapse; font-size: 13px; margin-bottom: 14px; }
+  table.rel th, table.rel td { border: 1px solid var(--line); padding: 7px 10px; text-align: left; }
+  table.rel th { background: #f4f7fc; color: var(--navy); }
+  .uml-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 16px; margin-bottom: 18px; }
+  .uml {
+    border: 1.6px solid #2b4a74; border-radius: 10px; overflow: hidden; background: #fff;
+  }
+  .uml h3 {
+    margin: 0; padding: 8px 12px; font-size: 13.5px; background: #eef3fa;
+    border-bottom: 1.6px solid #2b4a74; color: var(--navy);
+  }
+  .uml ul { margin: 0; padding: 8px 12px 10px 26px; font-size: 12px; font-family: "Cascadia Code", Consolas, monospace; color: #34465f; }
+  .uml li { margin: 2px 0; }
+  .tag { display: inline-block; font-size: 11px; padding: 1px 7px; border-radius: 999px; border: 1px solid; margin-left: 6px; vertical-align: middle; }
+  .tag-py { border-color: var(--py-line); color: var(--py-line); }
+  .tag-node { border-color: var(--node-line); color: var(--node-line); }
+  .tag-java { border-color: var(--java-line); color: var(--java-line); }
+  footer { text-align: center; color: var(--muted); font-size: 12.5px; padding: 10px 0 0; }
+  @media (max-width: 700px) {
+    header { padding: 26px 18px 22px; }
+    main { padding: 18px 12px 40px; }
+    section { padding: 16px 14px 6px; }
+  }
+  @media print {
+    nav { display: none; }
+    body { background: #fff; }
+    section { box-shadow: none; page-break-inside: avoid; }
+  }
+</style>
+</head>
+<body>
+<header>
+  <h1>Nomadix &mdash; diagrammes d'architecture</h1>
+  <p>
+    Vue complete de la plateforme dockerisee : <strong>10 conteneurs</strong>, un point d'entree
+    unique (API Gateway), un registre Eureka, Keycloak comme fournisseur d'identite et RabbitMQ
+    pour les evenements asynchrones. Tous les diagrammes sont du SVG ecrit a la main : aucun
+    acces reseau n'est necessaire pour les afficher (imprimable en PDF tel quel).
+  </p>
+</header>
+
+<nav>
+  <a href="#archi">1. Architecture</a>
+  <a href="#domaine">2. Modele de domaine</a>
+  <a href="#saga">3. Saga de reservation</a>
+  <a href="#mq">4. Flux RabbitMQ</a>
+  <a href="#feign">5. Eureka / Gateway / Feign</a>
+</nav>
+
+<main>
+
+<!-- ==================================================================== -->
+<section id="archi">
+  <h2>1. Architecture de deploiement</h2>
+  <p class="lead">
+    Le navigateur ne connait qu'une seule adresse : <span class="mono">http://localhost:8090</span>.
+    Nginx sert l'application Angular et relaie <span class="mono">/api/**</span> vers la Gateway,
+    qui resout le service cible dans Eureka et relaie le jeton Keycloak.
+  </p>
+
+  <div class="legend">
+    <span><i class="swatch w-client"></i>Client</span>
+    <span><i class="swatch w-java"></i>Service Java / Spring</span>
+    <span><i class="swatch w-py"></i>Service Python / FastAPI</span>
+    <span><i class="swatch w-node"></i>Service Node / Express</span>
+    <span><i class="swatch w-infra"></i>Infrastructure</span>
+    <span><i class="swatch w-auth"></i>Identite</span>
+  </div>
+
+  <svg viewBox="0 0 1120 700" role="img" aria-label="Architecture des conteneurs Nomadix">
+    <defs>
+      <marker id="a1" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+        <path d="M0 0 L10 5 L0 10 z" fill="#3b5b86" />
+      </marker>
+      <marker id="a1d" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+        <path d="M0 0 L10 5 L0 10 z" fill="#7a5aa8" />
+      </marker>
+    </defs>
+
+    <!-- Client -->
+    <rect class="box-client" x="30" y="90" width="190" height="96" rx="10" />
+    <text class="t-title" x="125" y="120" text-anchor="middle">Angular SPA</text>
+    <text class="t-sub" x="125" y="142" text-anchor="middle">localhost:8090</text>
+    <text class="t-sub" x="125" y="162" text-anchor="middle">nginx : proxy /api</text>
+
+    <!-- Gateway -->
+    <rect class="box-java" x="290" y="90" width="190" height="96" rx="10" />
+    <text class="t-title" x="385" y="118" text-anchor="middle">API Gateway</text>
+    <text class="t-sub" x="385" y="140" text-anchor="middle">localhost:9089 -&gt; 8089</text>
+    <text class="t-sub" x="385" y="160" text-anchor="middle">Spring Cloud Gateway</text>
+
+    <!-- Services -->
+    <text class="t-sub" x="560" y="34">Microservices metier (reseau Docker)</text>
+
+    <rect class="box-java" x="560" y="50" width="270" height="64" rx="10" />
+    <text class="t-title" x="580" y="76">TRAVELER-SERVICE</text>
+    <text class="t-sub" x="580" y="96">:8081 - Spring Boot + MySQL</text>
+
+    <rect class="box-java" x="560" y="130" width="270" height="64" rx="10" />
+    <text class="t-title" x="580" y="156">FLIGHT-SERVICE</text>
+    <text class="t-sub" x="580" y="176">:8082 - Spring Boot + MySQL</text>
+
+    <rect class="box-java" x="560" y="210" width="270" height="64" rx="10" />
+    <text class="t-title" x="580" y="236">BOOKING-SERVICE</text>
+    <text class="t-sub" x="580" y="256">:8083 - saga + OpenFeign</text>
+
+    <rect class="box-py" x="560" y="290" width="270" height="64" rx="10" />
+    <text class="t-title" x="580" y="316">NOTIFICATION-SERVICE</text>
+    <text class="t-sub" x="580" y="336">:8084 - FastAPI + consommateur</text>
+
+    <rect class="box-node" x="560" y="370" width="270" height="64" rx="10" />
+    <text class="t-title" x="580" y="396">CONFERENCE-SERVICE</text>
+    <text class="t-sub" x="580" y="416">:3000 - Node / Express</text>
+
+    <!-- Data -->
+    <rect class="box-infra" x="900" y="50" width="190" height="130" rx="10" />
+    <text class="t-title" x="995" y="78" text-anchor="middle">MySQL 8.4</text>
+    <text class="t-sub" x="995" y="100" text-anchor="middle">localhost:3307</text>
+    <text class="t-small" x="995" y="122" text-anchor="middle">nomadix_traveler_db</text>
+    <text class="t-small" x="995" y="140" text-anchor="middle">nomadix_flight_db</text>
+    <text class="t-small" x="995" y="158" text-anchor="middle">nomadix_booking_db</text>
+
+    <rect class="box-infra" x="900" y="210" width="190" height="150" rx="10" />
+    <text class="t-title" x="995" y="238" text-anchor="middle">RabbitMQ 3.13</text>
+    <text class="t-sub" x="995" y="260" text-anchor="middle">localhost:15672</text>
+    <text class="t-small" x="995" y="282" text-anchor="middle">nomadix.events (topic)</text>
+    <text class="t-small" x="995" y="300" text-anchor="middle">notification.events</text>
+    <text class="t-small" x="995" y="318" text-anchor="middle">nomadix.dlx -&gt; ...dlq</text>
+
+    <!-- Keycloak + Eureka -->
+    <rect class="box-auth" x="290" y="560" width="190" height="90" rx="10" />
+    <text class="t-title" x="385" y="588" text-anchor="middle">Keycloak 26</text>
+    <text class="t-sub" x="385" y="610" text-anchor="middle">localhost:8180</text>
+    <text class="t-small" x="385" y="630" text-anchor="middle">realm nomadix</text>
+
+    <rect class="box-infra" x="560" y="560" width="190" height="90" rx="10" />
+    <text class="t-title" x="655" y="588" text-anchor="middle">Eureka Server</text>
+    <text class="t-sub" x="655" y="610" text-anchor="middle">localhost:9761 -&gt; 8761</text>
+    <text class="t-small" x="655" y="630" text-anchor="middle">registre d'instances</text>
+
+    <!-- Edges -->
+    <path class="e" d="M220 132 H290" marker-end="url(#a1)" />
+    <text class="t-label" x="255" y="122" text-anchor="middle">JWT</text>
+
+    <path class="e" d="M480 132 H520" />
+    <path class="e" d="M520 82 V402" />
+    <path class="e" d="M520 82 H560" marker-end="url(#a1)" />
+    <path class="e" d="M520 162 H560" marker-end="url(#a1)" />
+    <path class="e" d="M520 242 H560" marker-end="url(#a1)" />
+    <path class="e" d="M520 322 H560" marker-end="url(#a1)" />
+    <path class="e" d="M520 402 H560" marker-end="url(#a1)" />
+    <text class="t-label" x="512" y="280" text-anchor="middle" transform="rotate(-90 512 280)">lb://SERVICE + JWT</text>
+
+    <path class="e" d="M865 82 V242" />
+    <path class="e" d="M830 82 H865" />
+    <path class="e" d="M830 162 H865" />
+    <path class="e" d="M830 242 H865" />
+    <path class="e" d="M865 120 H900" marker-end="url(#a1)" />
+    <text class="t-label" x="872" y="132">JDBC</text>
+
+    <path class="e-mq" d="M830 322 H872 V345 H900" marker-end="url(#a1)" />
+    <text class="t-label-mq" x="836" y="310">AMQP</text>
+
+    <path class="e-dash" d="M385 186 V560" marker-end="url(#a1d)" />
+    <text class="t-label-dash" x="392" y="330">JWKS</text>
+
+    <path class="e-dash" d="M125 186 V600 H290" marker-end="url(#a1d)" />
+    <text class="t-label-dash" x="134" y="470">Authorization Code + PKCE</text>
+
+    <path class="e-dash" d="M480 158 H510 V605 H560" marker-end="url(#a1d)" />
+    <text class="t-label-dash" x="470" y="520" text-anchor="end">fetch registry</text>
+
+    <path class="e-dash" d="M655 434 V560" marker-end="url(#a1d)" />
+    <text class="t-label-dash" x="664" y="500">register + heartbeat 30 s</text>
+  </svg>
+
+  <p class="caption">
+    Les ports publies sur l'hote ne servent <strong>jamais</strong> au routage interne : la Gateway et
+    Feign utilisent le nom Compose et le port interne (<span class="mono">traveler-service:8081</span>,
+    <span class="mono">conference-service:3000</span>...). Un conteneur ne peut joindre ni
+    <span class="mono">localhost</span> ni une IP <span class="mono">172.20.x.x</span> d'un autre conteneur.
+  </p>
+</section>
+
+<!-- ==================================================================== -->
+<section id="domaine">
+  <h2>2. Modele de domaine</h2>
+  <p class="lead">
+    Une base par service, <strong>aucune cle etrangere entre bases</strong> : les identifiants
+    (<span class="mono">travelerId</span>, <span class="mono">flightId</span>) sont des references
+    logiques verifiees par OpenFeign au moment de l'appel.
+  </p>
+
+  <div class="uml-grid">
+    <div class="uml">
+      <h3>Traveler <span class="tag tag-java">nomadix_traveler_db</span></h3>
+      <ul>
+        <li>id : Long &lt;&lt;PK&gt;&gt;</li>
+        <li>firstName : String</li>
+        <li>lastName : String</li>
+        <li>email : String</li>
+        <li>role : String</li>
+        <li>favoriteFlights : Set&lt;Long&gt;</li>
+      </ul>
+    </div>
+    <div class="uml">
+      <h3>Flight <span class="tag tag-java">nomadix_flight_db</span></h3>
+      <ul>
+        <li>id : Long &lt;&lt;PK&gt;&gt;</li>
+        <li>flightNumber : String</li>
+        <li>departureCity : String</li>
+        <li>arrivalCity : String</li>
+        <li>departureDate : LocalDate</li>
+        <li>availableSeats : int</li>
+        <li>price : BigDecimal</li>
+      </ul>
+    </div>
+    <div class="uml">
+      <h3>Booking <span class="tag tag-java">nomadix_booking_db</span></h3>
+      <ul>
+        <li>id : Long &lt;&lt;PK&gt;&gt;</li>
+        <li>travelerId : Long &lt;&lt;ref&gt;&gt;</li>
+        <li>flightId : Long &lt;&lt;ref&gt;&gt;</li>
+        <li>status : PENDING | CONFIRMED | CANCELLED</li>
+        <li>totalPrice : BigDecimal</li>
+        <li>createdAt : Instant</li>
+      </ul>
+    </div>
+    <div class="uml">
+      <h3>Conference <span class="tag tag-node">memoire</span></h3>
+      <ul>
+        <li>id : number</li>
+        <li>title : string</li>
+        <li>location : string</li>
+        <li>date : string (AAAA-MM-JJ)</li>
+        <li>flightId : number | null &lt;&lt;ref&gt;&gt;</li>
+      </ul>
+    </div>
+    <div class="uml">
+      <h3>Notification <span class="tag tag-py">memoire + archive</span></h3>
+      <ul>
+        <li>id : int</li>
+        <li>traveler_id : int &lt;&lt;ref&gt;&gt;</li>
+        <li>type : flight_delay | booking_confirmed | payment_success</li>
+        <li>message : string</li>
+        <li>status : string</li>
+        <li>sentAt : datetime</li>
+      </ul>
+    </div>
+    <div class="uml">
+      <h3>ConsumedEvent <span class="tag tag-py">notifications.json</span></h3>
+      <ul>
+        <li>routingKey : string (ex. booking.created)</li>
+        <li>receivedAt : string</li>
+        <li>payload : object (corps AMQP)</li>
+      </ul>
+    </div>
+  </div>
+
+  <table class="rel">
+    <thead>
+      <tr><th>Relation</th><th>Cardinalite</th><th>Mise en oeuvre</th></tr>
+    </thead>
+    <tbody>
+      <tr><td>Traveler &rarr; Booking</td><td>1 &rarr; 0..*</td><td><span class="mono">bookings.traveler_id</span>, verifie par <span class="mono">GET /api/travelers/{id}</span> (Feign) avant l'insert</td></tr>
+      <tr><td>Flight &rarr; Booking</td><td>1 &rarr; 0..*</td><td><span class="mono">bookings.flight_id</span>, verifie par <span class="mono">GET /api/flights/{id}</span> (Feign)</td></tr>
+      <tr><td>Traveler &rarr; Flight (favoris)</td><td>* &rarr; *</td><td><span class="mono">traveler.favorite_flights</span> (collection d'IDs) enrichie par Feign a la lecture</td></tr>
+      <tr><td>Conference &rarr; Flight</td><td>0..1 &rarr; 1</td><td><span class="mono">flightId</span> libre, non valide cote serveur Node</td></tr>
+      <tr><td>Notification &rarr; Traveler</td><td>* &rarr; 1</td><td><span class="mono">traveler_id</span> transmis par l'appelant, aucune validation croisee</td></tr>
+    </tbody>
+  </table>
+  <p class="caption">
+    Cette absence de jointure distribuee est un choix assume : elle evite le couplage entre bases,
+    au prix d'une coherence applicative (saga + compensation) plutot que transactionnelle.
+  </p>
+</section>
+
+<!-- ==================================================================== -->
+<section id="saga">
+  <h2>3. Saga de reservation (chemin nominal)</h2>
+  <p class="lead">
+    Une reservation est la seule operation qui traverse trois services en synchrone
+    (OpenFeign) avant de publier un evenement asynchrone (RabbitMQ). C'est le coeur
+    de la demonstration.
+  </p>
+
+  <svg viewBox="0 0 1160 640" role="img" aria-label="Diagramme de sequence de la reservation">
+    <defs>
+      <marker id="a3" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+        <path d="M0 0 L10 5 L0 10 z" fill="#3b5b86" />
+      </marker>
+      <marker id="a3f" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+        <path d="M0 0 L10 5 L0 10 z" fill="#c26a1a" />
+      </marker>
+      <marker id="a3m" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+        <path d="M0 0 L10 5 L0 10 z" fill="#2e7d4f" />
+      </marker>
+    </defs>
+
+    <!-- entetes -->
+    <rect class="box-client" x="10" y="24" width="110" height="52" rx="8" />
+    <text class="t-title" x="65" y="46" text-anchor="middle">SPA</text>
+    <text class="t-small" x="65" y="64" text-anchor="middle">:8090</text>
+
+    <rect class="box-java" x="150" y="24" width="120" height="52" rx="8" />
+    <text class="t-title" x="210" y="46" text-anchor="middle">Gateway</text>
+    <text class="t-small" x="210" y="64" text-anchor="middle">:9089</text>
+
+    <rect class="box-java" x="300" y="24" width="120" height="52" rx="8" />
+    <text class="t-title" x="360" y="46" text-anchor="middle">Booking</text>
+    <text class="t-small" x="360" y="64" text-anchor="middle">:8083</text>
+
+    <rect class="box-java" x="450" y="24" width="120" height="52" rx="8" />
+    <text class="t-title" x="510" y="46" text-anchor="middle">Traveler</text>
+    <text class="t-small" x="510" y="64" text-anchor="middle">:8081</text>
+
+    <rect class="box-java" x="600" y="24" width="120" height="52" rx="8" />
+    <text class="t-title" x="660" y="46" text-anchor="middle">Flight</text>
+    <text class="t-small" x="660" y="64" text-anchor="middle">:8082</text>
+
+    <rect class="box-infra" x="750" y="24" width="120" height="52" rx="8" />
+    <text class="t-title" x="810" y="46" text-anchor="middle">MySQL</text>
+    <text class="t-small" x="810" y="64" text-anchor="middle">booking_db</text>
+
+    <rect class="box-infra" x="895" y="24" width="120" height="52" rx="8" />
+    <text class="t-title" x="955" y="46" text-anchor="middle">RabbitMQ</text>
+    <text class="t-small" x="955" y="64" text-anchor="middle">:5672</text>
+
+    <rect class="box-py" x="1040" y="24" width="110" height="52" rx="8" />
+    <text class="t-title" x="1095" y="46" text-anchor="middle">Consumer</text>
+    <text class="t-small" x="1095" y="64" text-anchor="middle">python</text>
+
+    <!-- lignes de vie -->
+    <line class="e-life" x1="65" y1="76" x2="65" y2="600" />
+    <line class="e-life" x1="210" y1="76" x2="210" y2="600" />
+    <line class="e-life" x1="360" y1="76" x2="360" y2="600" />
+    <line class="e-life" x1="510" y1="76" x2="510" y2="600" />
+    <line class="e-life" x1="660" y1="76" x2="660" y2="600" />
+    <line class="e-life" x1="810" y1="76" x2="810" y2="600" />
+    <line class="e-life" x1="955" y1="76" x2="955" y2="600" />
+    <line class="e-life" x1="1095" y1="76" x2="1095" y2="600" />
+
+    <!-- messages -->
+    <path class="e" d="M65 120 H210" marker-end="url(#a3)" />
+    <text class="t-label" x="137" y="112" text-anchor="middle">POST /api/bookings (JWT)</text>
+
+    <path class="e" d="M210 152 H360" marker-end="url(#a3)" />
+    <text class="t-label" x="285" y="144" text-anchor="middle">JWT valide, relais</text>
+
+    <path class="e-feign" d="M360 186 H510" marker-end="url(#a3f)" />
+    <text class="t-label-feign" x="435" y="178" text-anchor="middle">GET /api/travelers/{id}</text>
+
+    <path class="e" d="M510 214 H360" marker-end="url(#a3)" stroke-dasharray="5 4" />
+    <text class="t-label" x="435" y="206" text-anchor="middle">200 / 404</text>
+
+    <path class="e-feign" d="M360 246 H660" marker-end="url(#a3f)" />
+    <text class="t-label-feign" x="510" y="238" text-anchor="middle">GET /api/flights/{id} (prix + places)</text>
+
+    <path class="e" d="M660 274 H360" marker-end="url(#a3)" stroke-dasharray="5 4" />
+    <text class="t-label" x="510" y="266" text-anchor="middle">200 {prix, availableSeats}</text>
+
+    <path class="e-feign" d="M360 306 H660" marker-end="url(#a3f)" />
+    <text class="t-label-feign" x="510" y="298" text-anchor="middle">POST /api/flights/{id}/seats/reserve</text>
+
+    <path class="e" d="M660 334 H360" marker-end="url(#a3)" stroke-dasharray="5 4" />
+    <text class="t-label" x="510" y="326" text-anchor="middle">200 places decrementees (409 si complet)</text>
+
+    <path class="e" d="M360 368 H810" marker-end="url(#a3)" />
+    <text class="t-label" x="585" y="360" text-anchor="middle">INSERT booking (CONFIRMED)</text>
+
+    <path class="e-mq" d="M360 400 H955" marker-end="url(#a3m)" />
+    <text class="t-label-mq" x="657" y="392" text-anchor="middle">publish booking.created (AMQP)</text>
+
+    <path class="e-mq" d="M955 432 H1095" marker-end="url(#a3m)" />
+    <text class="t-label-mq" x="1025" y="424" text-anchor="middle">deliver (booking.#)</text>
+
+    <path class="e" d="M1095 466 H1080 V482 H1095" marker-end="url(#a3)" />
+    <text class="t-label" x="1000" y="484" text-anchor="end">ack + notifications.json</text>
+
+    <path class="e" d="M360 516 H65" marker-end="url(#a3)" />
+    <text class="t-label" x="212" y="508" text-anchor="middle">201 Created {booking}</text>
+
+    <!-- note -->
+    <rect class="note" x="30" y="548" width="700" height="46" rx="8" />
+    <text class="t-small" x="44" y="567">Echec possible : si le consommateur refuse (JSON invalide ou simulateFailure=true), il repond</text>
+    <text class="t-small" x="44" y="584">nack(requeue=false) : RabbitMQ deplace le message vers nomadix.dlx puis notification.events.dlq.</text>
+
+    <rect class="note" x="748" y="548" width="380" height="46" rx="8" />
+    <text class="t-small" x="762" y="567">La reservation n'est jamais annulee par un echec</text>
+    <text class="t-small" x="762" y="584">asynchrone : la publication est fire-and-forget.</text>
+  </svg>
+
+  <p class="caption">
+    Chaque appel Feign porte le jeton de l'utilisateur courant (relaye par
+    <span class="mono">BearerTokens</span>) : les services cibles revalident la signature, l'emetteur
+    et l'audience <span class="mono">nomadix-api</span>. Timeouts : connexion 2 s, lecture 3 s,
+    circuit breaker 4 s.
+  </p>
+</section>
+
+<!-- ==================================================================== -->
+<section id="mq">
+  <h2>4. Flux RabbitMQ (exchange, file, DLQ)</h2>
+  <p class="lead">
+    Un seul exchange topic relie les trois producteurs au consommateur Python. La file est
+    durable et possede une dead-letter policy : tout message refuse part dans
+    <span class="mono">notification.events.dlq</span> au lieu de boucler.
+  </p>
+
+  <svg viewBox="0 0 1120 470" role="img" aria-label="Topologie RabbitMQ Nomadix">
+    <defs>
+      <marker id="a4" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+        <path d="M0 0 L10 5 L0 10 z" fill="#3b5b86" />
+      </marker>
+      <marker id="a4m" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+        <path d="M0 0 L10 5 L0 10 z" fill="#2e7d4f" />
+      </marker>
+      <marker id="a4r" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+        <path d="M0 0 L10 5 L0 10 z" fill="#b03030" />
+      </marker>
+    </defs>
+
+    <!-- producteurs -->
+    <text class="t-sub" x="30" y="34">Producteurs (Spring Boot)</text>
+    <rect class="box-java" x="30" y="46" width="170" height="56" rx="8" />
+    <text class="t-title" x="115" y="70" text-anchor="middle">Traveler</text>
+    <text class="t-small" x="115" y="88" text-anchor="middle">traveler.registered</text>
+
+    <rect class="box-java" x="30" y="116" width="170" height="56" rx="8" />
+    <text class="t-title" x="115" y="140" text-anchor="middle">Flight</text>
+    <text class="t-small" x="115" y="158" text-anchor="middle">flight.created / flight.delay</text>
+
+    <rect class="box-java" x="30" y="186" width="170" height="56" rx="8" />
+    <text class="t-title" x="115" y="210" text-anchor="middle">Booking</text>
+    <text class="t-small" x="115" y="228" text-anchor="middle">booking.created / cancelled</text>
+
+    <!-- exchange -->
+    <rect class="box-infra" x="270" y="96" width="200" height="110" rx="10" />
+    <text class="t-title" x="370" y="122" text-anchor="middle">nomadix.events</text>
+    <text class="t-sub" x="370" y="144" text-anchor="middle">exchange topic</text>
+    <text class="t-small" x="370" y="164" text-anchor="middle">durable</text>
+    <text class="t-small" x="370" y="182" text-anchor="middle">/ (vhost par defaut)</text>
+
+    <!-- queue principale -->
+    <rect class="box" x="560" y="70" width="200" height="110" rx="10" />
+    <text class="t-title" x="660" y="96" text-anchor="middle">notification.events</text>
+    <text class="t-sub" x="660" y="118" text-anchor="middle">queue durable</text>
+    <text class="t-small" x="660" y="138" text-anchor="middle">bindings : flight.#</text>
+    <text class="t-small" x="660" y="154" text-anchor="middle">traveler.# / booking.#</text>
+    <text class="t-small" x="660" y="170" text-anchor="middle">x-dead-letter-exchange</text>
+
+    <!-- consommateur -->
+    <rect class="box-py" x="860" y="70" width="230" height="110" rx="10" />
+    <text class="t-title" x="975" y="96" text-anchor="middle">notification-consumer</text>
+    <text class="t-sub" x="975" y="118" text-anchor="middle">python + pika</text>
+    <text class="t-small" x="975" y="140" text-anchor="middle">prefetch 10</text>
+    <text class="t-small" x="975" y="158" text-anchor="middle">ack apres ecriture</text>
+
+    <!-- archive -->
+    <rect class="box-py" x="860" y="230" width="230" height="80" rx="10" />
+    <text class="t-title" x="975" y="256" text-anchor="middle">notifications.json</text>
+    <text class="t-sub" x="975" y="278" text-anchor="middle">volume nomadix-notifications</text>
+    <text class="t-small" x="975" y="296" text-anchor="middle">GET /api/notifications/events</text>
+
+    <!-- DLX / DLQ -->
+    <rect class="box-infra" x="560" y="330" width="200" height="90" rx="10" />
+    <text class="t-title" x="660" y="356" text-anchor="middle">nomadix.dlx</text>
+    <text class="t-sub" x="660" y="378" text-anchor="middle">exchange topic</text>
+    <text class="t-small" x="660" y="398" text-anchor="middle">cle : notification.events.dlq</text>
+
+    <rect class="box" x="860" y="330" width="230" height="90" rx="10" stroke="#b03030" />
+    <text class="t-title" x="975" y="356" text-anchor="middle">notification.events.dlq</text>
+    <text class="t-sub" x="975" y="378" text-anchor="middle">queue durable</text>
+    <text class="t-small" x="975" y="398" text-anchor="middle">en-tete x-death (reason=rejected)</text>
+
+    <!-- edges -->
+    <path class="e" d="M200 74 H235 V120 H270" marker-end="url(#a4)" />
+    <path class="e" d="M200 144 H270" marker-end="url(#a4)" />
+    <path class="e" d="M200 214 H235 V186 H270" marker-end="url(#a4)" />
+
+    <path class="e" d="M470 140 H560" marker-end="url(#a4)" />
+    <text class="t-label" x="515" y="132" text-anchor="middle">flight.#</text>
+    <text class="t-label" x="515" y="156" text-anchor="middle">traveler.#</text>
+    <text class="t-label" x="515" y="180" text-anchor="middle">booking.#</text>
+
+    <path class="e-mq" d="M760 120 H860" marker-end="url(#a4m)" />
+    <text class="t-label-mq" x="810" y="112" text-anchor="middle">deliver</text>
+
+    <path class="e-mq" d="M975 180 V230" marker-end="url(#a4m)" />
+    <text class="t-label-mq" x="984" y="210">ack</text>
+
+    <path class="e" d="M660 180 V330" marker-end="url(#a4r)" stroke="#b03030" stroke-dasharray="6 5" />
+    <text class="t-label" x="672" y="256" fill="#b03030">nack(requeue=false)</text>
+
+    <path class="e" d="M760 375 H860" marker-end="url(#a4r)" stroke="#b03030" />
+    <text class="t-label" x="810" y="367" text-anchor="middle" fill="#b03030">dead-letter</text>
+  </svg>
+
+  <p class="caption">
+    Console de gestion : <span class="mono">http://localhost:15672</span> (nomadix / nomadix123).
+    Scenarios detailles dans <span class="mono">06-scenarios-test.md</span> et dans le test
+    <span class="mono">npm test</span> du service conference pour la partie HTTP.
+  </p>
+</section>
+
+<!-- ==================================================================== -->
+<section id="feign">
+  <h2>5. Eureka, Gateway et OpenFeign</h2>
+  <p class="lead">
+    Trois mecanismes distincts, souvent confondus : <strong>Eureka</strong> publie les adresses,
+    <strong>Gateway</strong> route les appels entrants (HTTP), <strong>OpenFeign</strong> effectue les
+    appels sortants entre services (HTTP interne).
+  </p>
+
+  <svg viewBox="0 0 1120 620" role="img" aria-label="Eureka, Gateway et OpenFeign">
+    <defs>
+      <marker id="a5" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+        <path d="M0 0 L10 5 L0 10 z" fill="#3b5b86" />
+      </marker>
+      <marker id="a5f" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+        <path d="M0 0 L10 5 L0 10 z" fill="#c26a1a" />
+      </marker>
+      <marker id="a5d" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+        <path d="M0 0 L10 5 L0 10 z" fill="#7a5aa8" />
+      </marker>
+    </defs>
+
+    <rect class="box-infra" x="450" y="40" width="220" height="90" rx="10" />
+    <text class="t-title" x="560" y="68" text-anchor="middle">Eureka Server</text>
+    <text class="t-sub" x="560" y="90" text-anchor="middle">dashboard : localhost:9761</text>
+    <text class="t-small" x="560" y="110" text-anchor="middle">6 applications, 1 instance chacune</text>
+
+    <rect class="box-java" x="30" y="200" width="170" height="110" rx="10" />
+    <text class="t-title" x="115" y="228" text-anchor="middle">API Gateway</text>
+    <text class="t-sub" x="115" y="250" text-anchor="middle">:8089</text>
+    <text class="t-small" x="115" y="272" text-anchor="middle">lb://TRAVELER-SERVICE</text>
+    <text class="t-small" x="115" y="290" text-anchor="middle">lb://BOOKING-SERVICE...</text>
+
+    <rect class="box-java" x="270" y="200" width="230" height="110" rx="10" />
+    <text class="t-title" x="385" y="228" text-anchor="middle">TRAVELER-SERVICE</text>
+    <text class="t-sub" x="385" y="250" text-anchor="middle">host traveler-service : 8081</text>
+    <text class="t-small" x="385" y="272" text-anchor="middle">instanceId traveler-service:8081</text>
+    <text class="t-small" x="385" y="290" text-anchor="middle">dashboard -&gt; localhost:9081</text>
+
+    <rect class="box-java" x="550" y="200" width="230" height="110" rx="10" />
+    <text class="t-title" x="665" y="228" text-anchor="middle">FLIGHT-SERVICE</text>
+    <text class="t-sub" x="665" y="250" text-anchor="middle">host flight-service : 8082</text>
+    <text class="t-small" x="665" y="272" text-anchor="middle">instanceId flight-service:8082</text>
+    <text class="t-small" x="665" y="290" text-anchor="middle">dashboard -&gt; localhost:9082</text>
+
+    <rect class="box-java" x="830" y="200" width="250" height="110" rx="10" />
+    <text class="t-title" x="955" y="228" text-anchor="middle">BOOKING-SERVICE</text>
+    <text class="t-sub" x="955" y="250" text-anchor="middle">host booking-service : 8083</text>
+    <text class="t-small" x="955" y="272" text-anchor="middle">instanceId booking-service:8083</text>
+    <text class="t-small" x="955" y="290" text-anchor="middle">dashboard -&gt; localhost:9083</text>
+
+    <!-- enregistrement -->
+    <path class="e-dash" d="M500 130 C460 160 430 170 420 200" marker-end="url(#a5d)" />
+    <path class="e-dash" d="M560 130 V200" marker-end="url(#a5d)" />
+    <path class="e-dash" d="M620 130 C660 160 700 175 720 200" marker-end="url(#a5d)" />
+    <path class="e-dash" d="M660 130 C760 165 880 170 940 200" marker-end="url(#a5d)" />
+    <text class="t-label-dash" x="700" y="150">register + heartbeat 30 s (duration 90 s)</text>
+
+    <!-- gateway -->
+    <path class="e" d="M200 245 H270" marker-end="url(#a5)" />
+    <text class="t-label" x="235" y="237" text-anchor="middle">route</text>
+
+    <!-- OpenFeign : un U par appel, du bas de l'appelant vers le bas du cible -->
+    <path class="e-feign" d="M430 310 V350 H600 V310" marker-end="url(#a5f)" />
+    <text class="t-label-feign" x="515" y="342" text-anchor="middle">favoris : GET /api/flights/{id}</text>
+
+    <path class="e-feign" d="M900 310 V400 H665 V310" marker-end="url(#a5f)" />
+    <text class="t-label-feign" x="782" y="392" text-anchor="middle">GET /api/flights/{id} + seats/reserve</text>
+
+    <path class="e-feign" d="M955 310 V470 H385 V310" marker-end="url(#a5f)" />
+    <text class="t-label-feign" x="670" y="462" text-anchor="middle">saga : GET /api/travelers/{id}</text>
+
+    <rect class="note" x="30" y="500" width="560" height="76" rx="8" />
+    <text class="t-small" x="44" y="522">Journaux utiles : docker logs nomadix-gateway | grep -i route</text>
+    <text class="t-small" x="44" y="542">docker logs nomadix-booking | grep -i feign</text>
+    <text class="t-small" x="44" y="562">Diagnostic : GET /api/bookings/integrations/feign?travelerId=1&amp;flightId=1</text>
+  </svg>
+
+  <p class="caption">
+    Service arrete : la Gateway renvoie <span class="mono">500</span> tant que l'instance est encore
+    enregistree (bail de 90 s), puis <span class="mono">503</span> une fois evincee. Feign, lui, bascule
+    immediatement sur le fallback (<span class="mono">reachable: false</span> en ~3 s).
+  </p>
+</section>
+
+<footer>
+  Nomadix &mdash; documentation technique. Fichier autonome : aucun CDN, aucune police distante.
+  Imprimer en PDF depuis le navigateur (Ctrl+P) conserve la mise en page.
+</footer>
+
+</main>
+</body>
+</html>

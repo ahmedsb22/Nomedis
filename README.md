@@ -77,6 +77,55 @@ Nous avons suivi les bonnes pratiques du module pour garantir un découpage prop
 
 ##  Guide d'installation et de lancement
 
+### 0. Déploiement complet avec Docker Compose (recommandé)
+
+Toute la plateforme (MySQL, RabbitMQ, Keycloak, Eureka, Gateway, 5 microservices,
+consommateur Python et frontend Angular) se lance avec une seule commande :
+
+```bash
+docker compose up -d --build     # premier lancement (compilation des images)
+docker compose ps                # état des conteneurs
+docker compose logs -f booking-service notification-consumer
+```
+
+| Composant | URL sur le poste hôte |
+| :--- | :--- |
+| Frontend Angular | http://localhost:8090 |
+| API Gateway | http://localhost:9089 |
+| Eureka | http://localhost:9761 |
+| Swagger Traveler / Flight / Booking | http://localhost:9081 / :9082 / :9083 (`/swagger-ui.html`) |
+| Swagger Notification / Conference | http://localhost:9084/swagger-ui / http://localhost:3001/swagger-ui |
+| Keycloak | http://localhost:8180 (`admin` / `admin`) |
+| RabbitMQ management | http://localhost:15672 (`nomadix` / `nomadix123`) |
+| MySQL | `localhost:3307` (`root` / `root`) |
+
+> Les ports internes des conteneurs restent 8761 / 8089 / 8081-8084 / 3000.
+> Seuls les ports publiés changent pour ne pas entrer en conflit avec un
+> lancement local des mêmes services.
+
+Le frontend est servi par nginx : `/api/**` est proxifié vers la Gateway,
+le navigateur n'a donc qu'une seule origine (`http://localhost:8090`).
+
+#### Lire les scénarios RabbitMQ dans la console de gestion
+
+1. Ouvrez http://localhost:15672 puis l'onglet **Queues**.
+2. `notification.events` : `Ready` = messages en attente, `Unacked` = en cours,
+   `Consumers` = 1 quand le consommateur Python tourne.
+3. Arrêtez `notification-consumer` puis émettez des événements : `Ready` monte
+   (boîte aux lettres durable). Redémarrez-le : `Ready` retombe à 0.
+4. Publiez un message invalide avec `POST /api/packh/rabbitmq/poison` :
+   il quitte `notification.events`, passe par l'exchange **`nomadix.dlx`** et
+   arrive dans la file **`notification.events.dlq`**. *Get messages* affiche
+   l'en-tête `x-death` (`reason=rejected`, `queue=notification.events`).
+5. Onglet **Exchanges** : `nomadix.events` (bindings `flight.#`, `traveler.#`,
+   `booking.#`) et `nomadix.dlx` matérialisent le routage et le dead-lettering.
+
+Les scénarios détaillés (6 scénarios RabbitMQ + 4 scénarios OpenFeign, avec les
+résultats attendus et le mode dégradé) sont documentés dans le **Swagger du
+Booking-Service**.
+
+---
+
 ### 1. Prérequis
 Assurez-vous d'avoir installé sur votre machine :
 - **JDK 17** et **Maven**
