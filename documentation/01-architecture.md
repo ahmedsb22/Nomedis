@@ -131,7 +131,7 @@ synchrone ; une operation de diffusion (notifier, rafraichir un cache) part en a
 | `booking-service` | `/api/bookings/**` | `lb://BOOKING-SERVICE` | authentifie |
 | `notification-service` | `/api/notifications/**` | `lb://NOTIFICATION-SERVICE` | authentifie |
 | `conference-service` | `/api/conferences/**` | `lb://CONFERENCE-SERVICE` | `GET` public ; ecritures = ADMIN |
-| `packh` | `/api/packh/**` | **aucune route explicite** | regle de securite ADMIN presente, mais aucun routage : appeler le service en direct |
+| `packh-*` | `/api/packh/**` | `lb://TRAVELER-SERVICE`, `lb://FLIGHT-SERVICE`, `lb://BOOKING-SERVICE` | ADMIN (regle `/api/packh/**`) ; un prefixe par service proprietaire de ses evenements |
 
 Deux consequences a connaitre :
 
@@ -140,8 +140,10 @@ Deux consequences a connaitre :
    regles fines de `/api/**` ; la protection reelle reste celle du microservice, qui
    revalide le JWT et ses roles (defense en profondeur). Pour un environnement de
    production, desactiver le locator et ne garder que les routes explicites.
-2. Les endpoints d'emission RabbitMQ (`/api/packh/...`) sont appeles **en direct sur 8082 /
-   8081** ; passer par `http://localhost:8089` renvoie `404` faute de route.
+2. Les endpoints d'emission RabbitMQ (`/api/packh/traveler-events`, `/api/packh/flight-events`,
+   `/api/packh/booking-events`, `/api/packh/rabbitmq/**`) sont routes par la Gateway vers le
+   service proprietaire (ADMIN requis). Ils restent joignables en direct sur 8081 / 8082 /
+   8083 pour le debogage, sans passer par l'equilibrage de charge.
 
 ### 5.2 CORS
 
