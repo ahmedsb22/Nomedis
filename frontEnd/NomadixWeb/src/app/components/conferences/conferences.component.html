@@ -1,0 +1,107 @@
+<div class="page">
+  <header class="page-header">
+    <div>
+      <h1 class="page-title">Conferences</h1>
+      <p class="page-subtitle">
+        Service Node/Express derriere la Gateway. Lecture publique ; la creation et la
+        suppression exigent le role <strong>ADMIN</strong> (la Gateway refuse sinon en 403).
+      </p>
+    </div>
+    <button type="button" class="btn btn-ghost" (click)="load()" [disabled]="loading()">
+      Actualiser
+    </button>
+  </header>
+
+  @if (notice()) {
+    <div class="alert alert-success">{{ notice() }}</div>
+  }
+  @if (error()) {
+    <div class="alert alert-error">{{ error() }}</div>
+  }
+
+  @if (auth.hasRole('ADMIN')) {
+    <section class="card" style="margin-bottom: 20px">
+      <h2 class="section-title">Nouvelle conference (ADMIN)</h2>
+      <div class="toolbar">
+        <label class="field" style="flex: 1; min-width: 200px">
+          <span>Titre</span>
+          <input class="input" type="text" [(ngModel)]="title" placeholder="Tech Summit Paris" />
+        </label>
+        <label class="field" style="flex: 1; min-width: 160px">
+          <span>Lieu</span>
+          <input class="input" type="text" [(ngModel)]="location" placeholder="Paris" />
+        </label>
+        <label class="field">
+          <span>Date</span>
+          <input class="input" type="date" [(ngModel)]="date" />
+        </label>
+        <label class="field" style="min-width: 200px">
+          <span>Vol associe (optionnel)</span>
+          <select class="select" [(ngModel)]="flightId">
+            <option [ngValue]="null">Aucun</option>
+            @for (flight of flights(); track flight.id) {
+              <option [ngValue]="flight.id">
+                {{ flight.flightNumber }} - {{ flight.departureCity }} &rarr;
+                {{ flight.arrivalCity }}
+              </option>
+            }
+          </select>
+        </label>
+        <button
+          type="button"
+          class="btn btn-primary"
+          [disabled]="!canSubmit()"
+          (click)="create()"
+        >
+          {{ saving() ? 'Enregistrement...' : 'Creer' }}
+        </button>
+      </div>
+    </section>
+  }
+
+  @if (loading()) {
+    <div class="card state">
+      <div class="spinner"></div>
+      Chargement des conferences...
+    </div>
+  } @else if (conferences().length === 0) {
+    <div class="card state">
+      <strong>Aucune conference</strong>
+      Le service a repondu une liste vide.
+    </div>
+  } @else {
+    <div class="grid">
+      @for (conference of conferences(); track conference.id) {
+        <article class="card">
+          <div class="chip-row" style="margin: 0 0 10px">
+            <span class="badge badge-blue">#{{ conference.id }}</span>
+            <span class="badge badge-grey">{{ conference.date | date: 'dd MMMM yyyy' }}</span>
+          </div>
+          <h3 style="margin: 0 0 4px; font-size: 17px; color: var(--navy)">
+            {{ conference.title }}
+          </h3>
+          <p class="muted" style="margin: 0">{{ conference.location }}</p>
+
+          @if (flightLabel(conference.flightId); as label) {
+            <p class="hint">Vol associe : {{ label }}</p>
+          } @else {
+            <p class="hint">Aucun vol associe.</p>
+          }
+
+          @if (auth.hasRole('ADMIN')) {
+            <div class="btn-row" style="margin-top: 12px">
+              <button
+                type="button"
+                class="btn btn-ghost btn-sm"
+                [disabled]="saving()"
+                (click)="remove(conference)"
+              >
+                Supprimer
+              </button>
+            </div>
+          }
+        </article>
+      }
+    </div>
+  }
+</div>

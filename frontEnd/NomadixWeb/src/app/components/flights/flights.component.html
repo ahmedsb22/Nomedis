@@ -1,3 +1,175 @@
-<div class="container mt-4"><h2>️ Available Flights</h2><p>Flight listing will appear here.</p></div>
+<div class="page">
+  <header class="page-header">
+    <div>
+      <h1 class="page-title">Catalogue des vols</h1>
+      <p class="page-subtitle">
+        Donnees lues en direct sur le Flight-Service via l'API Gateway (OpenFeign cote backend,
+        HTTP cote navigateur). La consultation est publique ; reserver demande une connexion.
+      </p>
+    </div>
+    <button type="button" class="btn btn-ghost" (click)="load()" [disabled]="loading()">
+      Actualiser
+    </button>
+  </header>
 
-<div style="margin-top:12px; padding:10px 12px; border:1px dashed #1565c0; background:#e3f2fd; border-radius:8px; font-size:14px"><b>Diagnostic v10</b><br>{{ diag() }}</div>
+  @if (notice()) {
+    <div class="alert alert-success">{{ notice() }}</div>
+  }
+
+  @if (auth.hasRole('ADMIN')) {
+    <section class="card" style="margin-bottom: 20px">
+      <h2 class="section-title">Ajouter un vol (ADMIN)</h2>
+      <div class="toolbar">
+        <label class="field" style="min-width: 130px">
+          <span>Numero</span>
+          <input class="input" type="text" [(ngModel)]="flightNumber" placeholder="TU700" />
+        </label>
+        <label class="field" style="flex: 1; min-width: 140px">
+          <span>Depart</span>
+          <input class="input" type="text" [(ngModel)]="departureCity" placeholder="Tunis" />
+        </label>
+        <label class="field" style="flex: 1; min-width: 140px">
+          <span>Arrivee</span>
+          <input class="input" type="text" [(ngModel)]="arrivalCity" placeholder="Paris" />
+        </label>
+        <label class="field">
+          <span>Date</span>
+          <input class="input" type="date" [(ngModel)]="departureDate" />
+        </label>
+        <label class="field" style="min-width: 110px">
+          <span>Places</span>
+          <input class="input" type="number" min="0" [(ngModel)]="availableSeats" />
+        </label>
+        <label class="field" style="min-width: 120px">
+          <span>Prix (DT)</span>
+          <input class="input" type="number" min="0" step="0.01" [(ngModel)]="price" />
+        </label>
+        <button
+          type="button"
+          class="btn btn-primary"
+          [disabled]="!canCreateFlight()"
+          (click)="createFlight()"
+        >
+          {{ saving() ? 'Ajout...' : 'Ajouter' }}
+        </button>
+      </div>
+      <p class="hint" style="margin-top: 0">
+        POST <span class="mono">/api/flights</span> : la Gateway exige le role ADMIN.
+        Un compte TRAVELER recoit un 403 explicite.
+      </p>
+    </section>
+  }
+
+  <div class="stats">
+    <div class="stat">
+      <div class="stat-label">Vols</div>
+      <div class="stat-value">{{ flights().length }}</div>
+    </div>
+    <div class="stat">
+      <div class="stat-label">Avec places</div>
+      <div class="stat-value">{{ availableCount() }}</div>
+    </div>
+    <div class="stat">
+      <div class="stat-label">Destinations</div>
+      <div class="stat-value">{{ destinationCount() }}</div>
+    </div>
+  </div>
+
+  <div class="toolbar">
+    <label class="field">
+      <span>Rechercher</span>
+      <input
+        class="input"
+        type="search"
+        placeholder="Numero de vol, ville de depart ou d'arrivee"
+        [ngModel]="search()"
+        (ngModelChange)="onSearch($event)"
+      />
+    </label>
+    <label class="field field-inline">
+      <input
+        type="checkbox"
+        [ngModel]="onlyAvailable()"
+        (ngModelChange)="onlyAvailable.set($event)"
+      />
+      <span style="text-transform: none; letter-spacing: 0; font-size: 14px">
+        Uniquement les vols avec des places
+      </span>
+    </label>
+  </div>
+
+  @if (loading()) {
+    <div class="card state">
+      <div class="spinner"></div>
+      Chargement du catalogue...
+    </div>
+  } @else if (error()) {
+    <div class="alert alert-error">{{ error() }}</div>
+    <button type="button" class="btn btn-primary" (click)="load()">Reessayer</button>
+  } @else if (filtered().length === 0) {
+    <div class="card state">
+      <strong>Aucun vol a afficher</strong>
+      @if (flights().length === 0) {
+        Le Flight-Service a repondu une liste vide : la base du catalogue est vide.
+      } @else {
+        Aucun vol ne correspond a votre recherche.
+      }
+    </div>
+  } @else {
+    <div class="table-wrap">
+      <table>
+        <thead>
+          <tr>
+            <th>Vol</th>
+            <th>Trajet</th>
+            <th>Depart</th>
+            <th>Places</th>
+            <th class="num">Prix</th>
+            <th></th>
+          </tr>
+        </thead>
+        <tbody>
+          @for (flight of filtered(); track flight.id) {
+            <tr>
+              <td class="mono">{{ flight.flightNumber }}</td>
+              <td>
+                <div class="route">
+                  <span>{{ flight.departureCity }}</span>
+                  <span class="arrow">&rarr;</span>
+                  <span>{{ flight.arrivalCity }}</span>
+                </div>
+              </td>
+              <td>{{ flight.departureDate | date: 'dd/MM/yyyy' }}</td>
+              <td>
+                <span class="badge" [ngClass]="seatsBadge(flight.availableSeats)">
+                  {{ seatsLabel(flight.availableSeats) }}
+                </span>
+              </td>
+              <td class="num">
+                @if (flight.price !== null && flight.price > 0) {
+                  {{ flight.price | number: '1.2-2' }} DT
+                } @else {
+                  <span class="muted">non defini</span>
+                }
+              </td>
+              <td class="num">
+                <button
+                  type="button"
+                  class="btn btn-primary btn-sm"
+                  [disabled]="flight.availableSeats <= 0"
+                  (click)="book(flight)"
+                >
+                  Reserver
+                </button>
+              </td>
+            </tr>
+          }
+        </tbody>
+      </table>
+    </div>
+    <p class="hint">
+      {{ filtered().length }} vol(s) affiche(s). Le stock affiche est celui du Flight-Service :
+      il est decremente des qu'une reservation est confirmee.
+    </p>
+  }
+</div>

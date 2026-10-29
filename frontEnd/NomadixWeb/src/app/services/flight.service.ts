@@ -1,17 +1,31 @@
-import { Injectable } from '@angular/core';
+import { inject, Injectable } from '@angular/core';
 import { HttpClient } from '@angular/common/http';
 import { Observable } from 'rxjs';
 
-@Injectable({
-  providedIn: 'root'
-})
+import { Flight, FlightInput } from '../models/nomadix.models';
+
+/**
+ * Catalogue des vols.
+ *
+ * Les URL sont relatives (`/api/...`) : en developpement, le proxy Angular
+ * (`proxy.conf.json`) les renvoie vers la Gateway sur le port 8089, ce qui
+ * evite tout probleme CORS dans le navigateur.
+ */
+@Injectable({ providedIn: 'root' })
 export class FlightService {
-  // URL de la API Gateway
-  private apiUrl = '/api/flights';
+  private readonly http = inject(HttpClient);
+  private readonly apiUrl = '/api/flights';
 
-  constructor(private http: HttpClient) { }
+  getFlights(): Observable<Flight[]> {
+    return this.http.get<Flight[]>(this.apiUrl);
+  }
 
-  getFlights(): Observable<any[]> {
-    return this.http.get<any[]>(this.apiUrl);
+  getFlight(id: number): Observable<Flight> {
+    return this.http.get<Flight>(`${this.apiUrl}/${id}`);
+  }
+
+  /** Ajout au catalogue : POST /api/flights (role ADMIN exige par la Gateway). */
+  createFlight(flight: FlightInput): Observable<Flight> {
+    return this.http.post<Flight>(this.apiUrl, flight);
   }
 }

@@ -1,4 +1,9 @@
 export const environment = {
   production: true,
-  apiUrl: ''
+  apiUrl: '',
+  keycloak: {
+    url: 'http://localhost:8180',
+    realm: 'nomadix',
+    clientId: 'nomadix-frontend'
+  }
 };

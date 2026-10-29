@@ -1,59 +1,163 @@
-import { Component, OnInit, signal } from '@angular/core';
+import { Component, inject, OnInit, signal } from '@angular/core';
 import { CommonModule } from '@angular/common';
-import { HttpClient } from '@angular/common/http';
+import { FormsModule } from '@angular/forms';
 
+import {
+  ConsumedEvent,
+  Notification,
+  NotificationType,
+} from '../../models/nomadix.models';
+import { NotificationService } from '../../services/notification.service';
+import { KeycloakService } from '../../auth/keycloak.service';
+import { httpErrorMessage } from '../../core/http-error';
+
+type EventSource = 'flight' | 'traveler' | 'booking';
+
+/**
+ * Notifications (FastAPI) et evenements RabbitMQ.
+ *
+ * - GET/POST/DELETE /api/notifications : stockage memoire du service Python ;
+ * - GET /api/notifications/events : archive ecrite par le consommateur
+ *   RabbitMQ (notifications.json), ce qui prouve le canal asynchrone ;
+ * - POST /api/packh/*-events/emit (ADMIN) : publie un evenement dans
+ *   l'exchange topic `nomadix.events`.
+ */
 @Component({
   selector: 'app-notifications',
   standalone: true,
-  imports: [CommonModule],
-  template: '<div style="padding:20px;font-family:Arial;max-width:950px;margin:auto;"><h2 style="color:#1a237e;">Notifications (reparee v17)</h2><div style="margin-top:10px;padding:12px;background:#e3f2fd;border:2px solid #1976d2;border-radius:8px;font-size:13px;color:#0d47a1;"><b>Diagnostic v17</b> | URL : /api/notifications | Etat : <b>{{ state() }}</b> | Elements : {{ items().length }} | Temps : {{ secs() }} s<div *ngIf="error()" style="color:#b71c1c;margin-top:8px;font-weight:bold;">{{ error() }}</div><div *ngIf="extra()" style="margin-top:8px;word-break:break-all;background:#bbdefb;padding:6px;border-radius:4px;">{{ extra() }}</div></div><div *ngIf="loading()" style="margin-top:15px;color:#555;font-size:16px;">Chargement des donnees...</div><div *ngIf="!loading() && !error() && items().length === 0" style="margin-top:15px;color:#e65100;">Le service a repondu une liste vide (0 element) : la base est peut-etre vide.</div><table *ngIf="!loading() && items().length > 0" style="width:100%;border-collapse:collapse;margin-top:15px;"><tr style="background:#e8eaf6;"><th style="padding:8px;border:1px solid #ddd;">ID</th><th style="padding:8px;border:1px solid #ddd;">Apercu</th></tr><tr *ngFor="let it of items(); let i = index"><td style="padding:8px;border:1px solid #ddd;">{{ it.id || it._id }}</td><td style="padding:8px;border:1px solid #ddd;font-size:12px;">{{ apercu(i) }}</td></tr></table></div>'
+  imports: [CommonModule, FormsModule],
+  templateUrl: './notifications.component.html',
 })
 export class NotificationsComponent implements OnInit {
-  items = signal<any[]>([]);
-  loading = signal(true);
-  error = signal<string | null>(null);
-  state = signal('demarrage');
-  secs = signal(0);
-  extra = signal('');
-  t0 = Date.now();
+  private readonly notificationService = inject(NotificationService);
+  protected readonly auth = inject(KeycloakService);
 
-  constructor(private http: HttpClient) {}
+  protected readonly notifications = signal<Notification[]>([]);
+  protected readonly events = signal<ConsumedEvent[]>([]);
+  protected readonly loading = signal(true);
+  protected readonly error = signal<string | null>(null);
+  protected readonly notice = signal<string | null>(null);
+  protected readonly busy = signal(false);
+
+  protected travelerId: number | null = 1;
+  protected type: NotificationType = 'booking_confirmed';
+  protected message = '';
+
+  protected readonly eventSources: EventSource[] = ['flight', 'traveler', 'booking'];
 
   ngOnInit(): void {
-    this.state.set('requete envoyee');
-    this.http.get<any[]>('/api/notifications').subscribe({
-      next: (d) => {
-        this.items.set(d || []);
-        this.loading.set(false);
-        const n = d ? d.length : 0;
-        if (n === 0) { this.state.set('OK - liste vide'); } else { this.state.set('OK'); }
-        this.extra.set('Reponse brute : ' + JSON.stringify(d).substring(0, 200));
-      },
-      error: (e) => {
-        this.loading.set(false);
-        this.state.set('ERREUR HTTP');
-        this.error.set('Echec de la requete : HTTP ' + e.status + ' ' + e.statusText);
-        this.extra.set('Si HTTP 404 : mauvais chemin. Si HTTP 0 : service arrete ou proxy absent.');
-      }
-    });
-    setInterval(() => {
-      if (!this.loading()) { return; }
-      this.secs.set(Math.round((Date.now() - this.t0) / 1000));
-    }, 1000);
-    setTimeout(() => {
-      if (this.loading()) {
-        this.loading.set(false);
-        this.state.set('TIMEOUT 8 s');
-        this.error.set('Aucune reponse apres 8 secondes : verifie que le microservice tourne.');
-      }
-    }, 8000);
+    this.load();
   }
 
-  apercu(i: number): string {
-    const it = this.items()[i];
-    if (!it) { return ''; }
-    const s = JSON.stringify(it);
-    if (s.length > 120) { return s.substring(0, 120) + '...'; }
-    return s;
+  protected load(): void {
+    this.loading.set(true);
+    this.error.set(null);
+    this.notificationService.getNotifications().subscribe({
+      next: (notifications) => {
+        this.notifications.set(notifications ?? []);
+        this.loading.set(false);
+      },
+      error: (error) => {
+        this.error.set(httpErrorMessage(error));
+        this.loading.set(false);
+      },
+    });
+    // Archive du consommateur RabbitMQ : chargement independant pour ne pas
+    // bloquer la liste des notifications si le fichier n'existe pas encore.
+    this.notificationService.getConsumedEvents().subscribe({
+      next: (events) => this.events.set(events ?? []),
+      error: () => this.events.set([]),
+    });
+  }
+
+  /** Resume lisible du corps d'un evenement consomme. */
+  protected eventSummary(event: ConsumedEvent): string {
+    const payload = event.payload ?? {};
+    const parts = Object.entries(payload)
+      .filter(([key]) => !['type', 'occurredAt', 'publishedTo'].includes(key))
+      .map(([key, value]) => `${key}=${String(value)}`);
+    return parts.length > 0 ? parts.join(', ') : '(corps vide)';
+  }
+
+  protected canSend(): boolean {
+    return (
+      !this.busy() &&
+      this.travelerId !== null &&
+      this.travelerId > 0 &&
+      this.message.trim().length > 0
+    );
+  }
+
+  protected send(): void {
+    if (!this.canSend() || this.travelerId === null) {
+      return;
+    }
+    this.busy.set(true);
+    this.error.set(null);
+    this.notice.set(null);
+    this.notificationService
+      .sendNotification({
+        traveler_id: this.travelerId,
+        type: this.type,
+        message: this.message.trim(),
+      })
+      .subscribe({
+        next: (notification) => {
+          this.busy.set(false);
+          this.notice.set(`Notification #${notification.id} enregistree (statut ${notification.status}).`);
+          this.message = '';
+          this.load();
+        },
+        error: (error) => {
+          this.error.set(httpErrorMessage(error));
+          this.busy.set(false);
+        },
+      });
+  }
+
+  protected remove(notification: Notification): void {
+    this.busy.set(true);
+    this.error.set(null);
+    this.notice.set(null);
+    this.notificationService.deleteNotification(notification.id).subscribe({
+      next: () => {
+        this.busy.set(false);
+        this.notice.set(`Notification #${notification.id} supprimee.`);
+        this.load();
+      },
+      error: (error) => {
+        this.error.set(httpErrorMessage(error));
+        this.busy.set(false);
+      },
+    });
+  }
+
+  protected emit(source: EventSource): void {
+    this.busy.set(true);
+    this.error.set(null);
+    this.notice.set(null);
+    this.notificationService.emitEvent(source).subscribe({
+      next: (event) => {
+        this.busy.set(false);
+        this.notice.set(
+          `Evenement ${event.routingKey} publie dans ${event.publishedTo}. ` +
+            'Verifiez la file notification.events dans la console RabbitMQ (http://localhost:15672).',
+        );
+      },
+      error: (error) => {
+        this.error.set(httpErrorMessage(error));
+        this.busy.set(false);
+      },
+    });
+  }
+
+  protected typeLabel(type: string): string {
+    if (type === 'flight_delay') {
+      return 'Retard de vol';
+    }
+    if (type === 'payment_success') {
+      return 'Paiement reussi';
+    }
+    return 'Reservation confirmee';
   }
 }

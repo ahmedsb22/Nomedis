@@ -1,1 +1,192 @@
-﻿<div class="container mt-4"><h2>👤 Traveler Profile</h2><p>Traveler details will appear here.</p></div>
+<div class="page">
+  <header class="page-header">
+    <div>
+      <h1 class="page-title">Voyageurs</h1>
+      <p class="page-subtitle">
+        Liste lue sur le Traveler-Service (base dediee <span class="mono">nomadix_traveler_db</span>).
+        Les vols favoris sont enrichis par OpenFeign : seuls les identifiants sont stockes,
+        le detail est lu en synchrone sur le Flight-Service.
+      </p>
+    </div>
+    <button type="button" class="btn btn-ghost" (click)="load()" [disabled]="loading()">
+      Actualiser
+    </button>
+  </header>
+
+  <section class="card" style="margin-bottom: 20px">
+    <h2 class="section-title">
+      {{ editingId() === null ? 'Nouveau voyageur' : 'Modifier le voyageur #' + editingId() }}
+    </h2>
+    <div class="toolbar">
+      <label class="field" style="flex: 1; min-width: 160px">
+        <span>Prenom</span>
+        <input class="input" type="text" [(ngModel)]="firstName" placeholder="Sami" />
+      </label>
+      <label class="field" style="flex: 1; min-width: 160px">
+        <span>Nom</span>
+        <input class="input" type="text" [(ngModel)]="lastName" placeholder="Trabelsi" />
+      </label>
+      <label class="field" style="flex: 1; min-width: 220px">
+        <span>Email</span>
+        <input class="input" type="email" [(ngModel)]="email" placeholder="sami@nomadix.tn" />
+      </label>
+      <label class="field">
+        <span>Role metier</span>
+        <select class="select" [(ngModel)]="role">
+          <option value="USER">USER</option>
+          <option value="ADMIN">ADMIN</option>
+        </select>
+      </label>
+      <button
+        type="button"
+        class="btn btn-primary"
+        [disabled]="!canSaveTraveler()"
+        (click)="saveTraveler()"
+      >
+        {{ saving() ? 'Enregistrement...' : (editingId() === null ? 'Creer' : 'Enregistrer') }}
+      </button>
+      @if (editingId() !== null) {
+        <button type="button" class="btn btn-ghost" (click)="startCreate()">Annuler</button>
+      }
+    </div>
+    <p class="hint" style="margin-top: 0">
+      POST puis PUT sur <span class="mono">/api/travelers</span> via la Gateway (jeton Keycloak requis).
+      Le role metier est independant des roles Keycloak ADMIN / TRAVELER.
+    </p>
+  </section>
+
+  @if (notice()) {
+    <div class="alert alert-success">{{ notice() }}</div>
+  }
+
+  @if (loading()) {
+    <div class="card state">
+      <div class="spinner"></div>
+      Chargement des voyageurs...
+    </div>
+  } @else if (error()) {
+    <div class="alert alert-error">{{ error() }}</div>
+    <button type="button" class="btn btn-primary" (click)="load()">Reessayer</button>
+  } @else if (travelers().length === 0) {
+    <div class="card state">
+      <strong>Aucun voyageur</strong>
+      La base du Traveler-Service est vide.
+    </div>
+  } @else {
+    <div class="grid">
+      @for (traveler of travelers(); track traveler.id) {
+        <article class="card">
+          <div class="identity">
+            <div class="avatar">{{ initials(traveler) }}</div>
+            <div>
+              <div class="identity-name">{{ fullName(traveler) }}</div>
+              <div class="muted">{{ traveler.email }}</div>
+            </div>
+          </div>
+
+          <div class="chip-row">
+            <span class="badge badge-blue">#{{ traveler.id }}</span>
+            <span class="badge badge-grey">{{ traveler.role || 'USER' }}</span>
+            <span class="badge badge-amber">
+              {{ traveler.favoriteFlights.length }} favori(s)
+            </span>
+          </div>
+
+          <div class="btn-row" style="margin-top: 14px">
+            <button type="button" class="btn btn-ghost btn-sm" (click)="toggle(traveler)">
+              {{ expandedId() === traveler.id ? 'Masquer les favoris' : 'Voir les favoris' }}
+            </button>
+            <button
+              type="button"
+              class="btn btn-ghost btn-sm"
+              [disabled]="saving()"
+              (click)="startEdit(traveler)"
+            >
+              Modifier
+            </button>
+            @if (auth.hasRole('ADMIN')) {
+              <button
+                type="button"
+                class="btn btn-danger btn-sm"
+                [disabled]="saving()"
+                (click)="removeTraveler(traveler)"
+              >
+                Supprimer
+              </button>
+            }
+          </div>
+
+          @if (expandedId() === traveler.id) {
+            <div class="panel">
+              <p class="panel-title">Vols favoris (OpenFeign &rarr; Flight-Service)</p>
+
+              @if (favoriteError()) {
+                <div class="alert alert-error">{{ favoriteError() }}</div>
+              }
+
+              @if (favoritesLoading() === traveler.id) {
+                <div class="state" style="padding: 18px 0">
+                  <div class="spinner"></div>
+                  Appel Feign en cours...
+                </div>
+              } @else if (favoritesFor(traveler.id).length === 0) {
+                <p class="muted" style="margin: 0 0 12px">
+                  Aucun vol favori pour ce voyageur.
+                </p>
+              } @else {
+                <table style="margin-bottom: 12px">
+                  <tbody>
+                    @for (flight of favoritesFor(traveler.id); track flight.id) {
+                      <tr>
+                        <td class="mono" style="padding-left: 0">{{ flight.flightNumber }}</td>
+                        <td>{{ flight.departureCity }} &rarr; {{ flight.arrivalCity }}</td>
+                        <td class="muted">{{ flight.departureDate | date: 'dd/MM/yyyy' }}</td>
+                        <td class="num" style="padding-right: 0">
+                          <button
+                            type="button"
+                            class="btn btn-ghost btn-sm"
+                            [disabled]="saving()"
+                            (click)="removeFavorite(traveler, flight)"
+                          >
+                            Retirer
+                          </button>
+                        </td>
+                      </tr>
+                    }
+                  </tbody>
+                </table>
+              }
+
+              <div class="toolbar" style="margin-bottom: 0">
+                <label class="field" style="flex: 1">
+                  <span>Ajouter un vol</span>
+                  <select
+                    class="select"
+                    [ngModel]="selectedFlightId()"
+                    (ngModelChange)="selectedFlightId.set($event)"
+                  >
+                    <option [ngValue]="null">Choisir un vol...</option>
+                    @for (flight of flights(); track flight.id) {
+                      <option [ngValue]="flight.id">
+                        {{ flight.flightNumber }} - {{ flight.departureCity }} &rarr;
+                        {{ flight.arrivalCity }}
+                      </option>
+                    }
+                  </select>
+                </label>
+                <button
+                  type="button"
+                  class="btn btn-primary"
+                  [disabled]="saving() || selectedFlightId() === null"
+                  (click)="addFavorite(traveler)"
+                >
+                  Ajouter
+                </button>
+              </div>
+            </div>
+          }
+        </article>
+      }
+    </div>
+  }
+</div>

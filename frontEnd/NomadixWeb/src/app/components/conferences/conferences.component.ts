@@ -1,59 +1,125 @@
-import { Component, OnInit, signal } from '@angular/core';
+import { Component, inject, OnInit, signal } from '@angular/core';
 import { CommonModule } from '@angular/common';
-import { HttpClient } from '@angular/common/http';
+import { FormsModule } from '@angular/forms';
 
+import { Conference, Flight } from '../../models/nomadix.models';
+import { ConferenceService } from '../../services/conference.service';
+import { FlightService } from '../../services/flight.service';
+import { KeycloakService } from '../../auth/keycloak.service';
+import { httpErrorMessage } from '../../core/http-error';
+
+/**
+ * Conferences (service Node/Express).
+ *
+ * Lecture publique ; la creation et la suppression sont reservees au role
+ * ADMIN, regle appliquee deux fois : par la Gateway et par le bouton masque ici.
+ */
 @Component({
   selector: 'app-conferences',
   standalone: true,
-  imports: [CommonModule],
-  template: '<div style="padding:20px;font-family:Arial;max-width:950px;margin:auto;"><h2 style="color:#1a237e;">Conferences (reparee v17)</h2><div style="margin-top:10px;padding:12px;background:#e3f2fd;border:2px solid #1976d2;border-radius:8px;font-size:13px;color:#0d47a1;"><b>Diagnostic v17</b> | URL : /api/conferences | Etat : <b>{{ state() }}</b> | Elements : {{ items().length }} | Temps : {{ secs() }} s<div *ngIf="error()" style="color:#b71c1c;margin-top:8px;font-weight:bold;">{{ error() }}</div><div *ngIf="extra()" style="margin-top:8px;word-break:break-all;background:#bbdefb;padding:6px;border-radius:4px;">{{ extra() }}</div></div><div *ngIf="loading()" style="margin-top:15px;color:#555;font-size:16px;">Chargement des donnees...</div><div *ngIf="!loading() && !error() && items().length === 0" style="margin-top:15px;color:#e65100;">Le service a repondu une liste vide (0 element) : la base est peut-etre vide.</div><table *ngIf="!loading() && items().length > 0" style="width:100%;border-collapse:collapse;margin-top:15px;"><tr style="background:#e8eaf6;"><th style="padding:8px;border:1px solid #ddd;">ID</th><th style="padding:8px;border:1px solid #ddd;">Apercu</th></tr><tr *ngFor="let it of items(); let i = index"><td style="padding:8px;border:1px solid #ddd;">{{ it.id || it._id }}</td><td style="padding:8px;border:1px solid #ddd;font-size:12px;">{{ apercu(i) }}</td></tr></table></div>'
+  imports: [CommonModule, FormsModule],
+  templateUrl: './conferences.component.html',
 })
 export class ConferencesComponent implements OnInit {
-  items = signal<any[]>([]);
-  loading = signal(true);
-  error = signal<string | null>(null);
-  state = signal('demarrage');
-  secs = signal(0);
-  extra = signal('');
-  t0 = Date.now();
+  private readonly conferenceService = inject(ConferenceService);
+  private readonly flightService = inject(FlightService);
+  protected readonly auth = inject(KeycloakService);
 
-  constructor(private http: HttpClient) {}
+  protected readonly conferences = signal<Conference[]>([]);
+  protected readonly flights = signal<Flight[]>([]);
+  protected readonly loading = signal(true);
+  protected readonly error = signal<string | null>(null);
+  protected readonly notice = signal<string | null>(null);
+  protected readonly saving = signal(false);
+
+  // Champs du formulaire (ngModel).
+  protected title = '';
+  protected location = '';
+  protected date = '';
+  protected flightId: number | null = null;
 
   ngOnInit(): void {
-    this.state.set('requete envoyee');
-    this.http.get<any[]>('/api/conferences').subscribe({
-      next: (d) => {
-        this.items.set(d || []);
-        this.loading.set(false);
-        const n = d ? d.length : 0;
-        if (n === 0) { this.state.set('OK - liste vide'); } else { this.state.set('OK'); }
-        this.extra.set('Reponse brute : ' + JSON.stringify(d).substring(0, 200));
-      },
-      error: (e) => {
-        this.loading.set(false);
-        this.state.set('ERREUR HTTP');
-        this.error.set('Echec de la requete : HTTP ' + e.status + ' ' + e.statusText);
-        this.extra.set('Si HTTP 404 : mauvais chemin. Si HTTP 0 : service arrete ou proxy absent.');
-      }
+    this.load();
+    this.flightService.getFlights().subscribe({
+      next: (flights) => this.flights.set(flights ?? []),
+      error: () => this.flights.set([]),
     });
-    setInterval(() => {
-      if (!this.loading()) { return; }
-      this.secs.set(Math.round((Date.now() - this.t0) / 1000));
-    }, 1000);
-    setTimeout(() => {
-      if (this.loading()) {
-        this.loading.set(false);
-        this.state.set('TIMEOUT 8 s');
-        this.error.set('Aucune reponse apres 8 secondes : verifie que le microservice tourne.');
-      }
-    }, 8000);
   }
 
-  apercu(i: number): string {
-    const it = this.items()[i];
-    if (!it) { return ''; }
-    const s = JSON.stringify(it);
-    if (s.length > 120) { return s.substring(0, 120) + '...'; }
-    return s;
+  protected load(): void {
+    this.loading.set(true);
+    this.error.set(null);
+    this.conferenceService.getConferences().subscribe({
+      next: (conferences) => {
+        this.conferences.set(conferences ?? []);
+        this.loading.set(false);
+      },
+      error: (error) => {
+        this.error.set(httpErrorMessage(error));
+        this.loading.set(false);
+      },
+    });
+  }
+
+  protected flightLabel(flightId: number | null): string | null {
+    if (flightId === null) {
+      return null;
+    }
+    const flight = this.flights().find((item) => item.id === flightId);
+    return flight
+      ? `${flight.flightNumber} (${flight.departureCity} -> ${flight.arrivalCity})`
+      : `Vol #${flightId}`;
+  }
+
+  protected canSubmit(): boolean {
+    return !this.saving() && this.title.trim() !== '' && this.location.trim() !== '' && this.date !== '';
+  }
+
+  protected create(): void {
+    if (!this.canSubmit()) {
+      return;
+    }
+    this.saving.set(true);
+    this.error.set(null);
+    this.notice.set(null);
+    this.conferenceService
+      .createConference({
+        title: this.title.trim(),
+        location: this.location.trim(),
+        date: this.date,
+        flightId: this.flightId,
+      })
+      .subscribe({
+        next: (conference) => {
+          this.saving.set(false);
+          this.notice.set(`Conference « ${conference.title} » enregistree.`);
+          this.title = '';
+          this.location = '';
+          this.date = '';
+          this.flightId = null;
+          this.load();
+        },
+        error: (error) => {
+          this.error.set(httpErrorMessage(error));
+          this.saving.set(false);
+        },
+      });
+  }
+
+  protected remove(conference: Conference): void {
+    this.saving.set(true);
+    this.error.set(null);
+    this.notice.set(null);
+    this.conferenceService.deleteConference(conference.id).subscribe({
+      next: () => {
+        this.saving.set(false);
+        this.notice.set(`Conference « ${conference.title} » supprimee.`);
+        this.load();
+      },
+      error: (error) => {
+        this.error.set(httpErrorMessage(error));
+        this.saving.set(false);
+      },
+    });
   }
 }

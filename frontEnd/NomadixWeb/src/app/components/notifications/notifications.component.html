@@ -1,0 +1,163 @@
+<div class="page">
+  <header class="page-header">
+    <div>
+      <h1 class="page-title">Notifications</h1>
+      <p class="page-subtitle">
+        Service Python/FastAPI. Les notifications creees ici sont stockees en memoire ; les
+        evenements <span class="mono">flight.*</span>, <span class="mono">traveler.*</span> et
+        <span class="mono">booking.*</span> publies dans RabbitMQ sont, eux, consommés par
+        <span class="mono">packh_rabbit_consumer.py</span> et historises dans
+        <span class="mono">notifications.json</span>.
+      </p>
+    </div>
+    <button type="button" class="btn btn-ghost" (click)="load()" [disabled]="loading()">
+      Actualiser
+    </button>
+  </header>
+
+  @if (notice()) {
+    <div class="alert alert-success">{{ notice() }}</div>
+  }
+  @if (error()) {
+    <div class="alert alert-error">{{ error() }}</div>
+  }
+
+  <section class="card" style="margin-bottom: 20px">
+    <h2 class="section-title">Envoyer une notification</h2>
+    <div class="toolbar">
+      <label class="field" style="max-width: 160px">
+        <span>Voyageur</span>
+        <input class="input" type="number" min="1" [(ngModel)]="travelerId" />
+      </label>
+      <label class="field" style="flex: 1; min-width: 190px">
+        <span>Type</span>
+        <select class="select" [(ngModel)]="type">
+          <option value="booking_confirmed">Reservation confirmee</option>
+          <option value="flight_delay">Retard de vol</option>
+          <option value="payment_success">Paiement reussi</option>
+        </select>
+      </label>
+      <label class="field" style="flex: 2; min-width: 260px">
+        <span>Message</span>
+        <input
+          class="input"
+          type="text"
+          [(ngModel)]="message"
+          placeholder="Votre vol TN201 vers Paris est confirme"
+        />
+      </label>
+      <button type="button" class="btn btn-primary" [disabled]="!canSend()" (click)="send()">
+        {{ busy() ? 'Envoi...' : 'Envoyer' }}
+      </button>
+    </div>
+  </section>
+
+  @if (auth.hasRole('ADMIN')) {
+    <section class="card" style="margin-bottom: 20px">
+      <h2 class="section-title">Evenements RabbitMQ (ADMIN)</h2>
+      <p class="hint" style="margin-top: 0">
+        Chaque bouton publie un evenement de demonstration dans l'exchange topic
+        <span class="mono">nomadix.events</span>, exactement comme le font les services en
+        production. Sans consommateur actif, le message reste en file dans
+        <span class="mono">notification.events</span> (queue durable).
+      </p>
+      <div class="btn-row">
+        <button type="button" class="btn btn-ghost" [disabled]="busy()" (click)="emit('flight')">
+          flight.created
+        </button>
+        <button type="button" class="btn btn-ghost" [disabled]="busy()" (click)="emit('traveler')">
+          traveler.registered
+        </button>
+        <button type="button" class="btn btn-ghost" [disabled]="busy()" (click)="emit('booking')">
+          booking.created
+        </button>
+      </div>
+    </section>
+  }
+
+  <section class="card" style="margin-bottom: 20px">
+    <h2 class="section-title">Evenements consommes par RabbitMQ</h2>
+    <p class="hint" style="margin-top: 0">
+      Archive lue dans <span class="mono">notifications.json</span> (volume partage avec
+      <span class="mono">packh_rabbit_consumer.py</span>). Un message refuse n'apparait pas ici :
+      il part dans la file <span class="mono">notification.events.dlq</span> de la console RabbitMQ.
+    </p>
+    @if (events().length === 0) {
+      <p class="muted">
+        Aucun evenement archive pour l'instant. Publiez un evenement ci-dessus, puis cliquez sur
+        « Actualiser ».
+      </p>
+    } @else {
+      <div class="table-wrap">
+        <table>
+          <thead>
+            <tr>
+              <th>Routing key</th>
+              <th>Recu le</th>
+              <th>Contenu</th>
+            </tr>
+          </thead>
+          <tbody>
+            @for (event of events(); track $index) {
+              <tr>
+                <td><span class="badge badge-blue">{{ event.routingKey }}</span></td>
+                <td class="muted">{{ event.receivedAt | date: 'dd/MM/yyyy HH:mm:ss' }}</td>
+                <td class="mono">{{ eventSummary(event) }}</td>
+              </tr>
+            }
+          </tbody>
+        </table>
+      </div>
+    }
+  </section>
+
+  @if (loading()) {
+    <div class="card state">
+      <div class="spinner"></div>
+      Chargement des notifications...
+    </div>
+  } @else if (notifications().length === 0) {
+    <div class="card state">
+      <strong>Aucune notification</strong>
+      Le service a repondu une liste vide. Creez-en une avec le formulaire ci-dessus.
+    </div>
+  } @else {
+    <div class="table-wrap">
+      <table>
+        <thead>
+          <tr>
+            <th>#</th>
+            <th>Voyageur</th>
+            <th>Type</th>
+            <th>Message</th>
+            <th>Envoyee le</th>
+            <th></th>
+          </tr>
+        </thead>
+        <tbody>
+          @for (notification of notifications(); track notification.id) {
+            <tr>
+              <td class="mono">{{ notification.id }}</td>
+              <td>#{{ notification.traveler_id }}</td>
+              <td>
+                <span class="badge badge-blue">{{ typeLabel(notification.type) }}</span>
+              </td>
+              <td>{{ notification.message }}</td>
+              <td class="muted">{{ notification.sentAt | date: 'dd/MM/yyyy HH:mm' }}</td>
+              <td class="num">
+                <button
+                  type="button"
+                  class="btn btn-ghost btn-sm"
+                  [disabled]="busy()"
+                  (click)="remove(notification)"
+                >
+                  Supprimer
+                </button>
+              </td>
+            </tr>
+          }
+        </tbody>
+      </table>
+    </div>
+  }
+</div>

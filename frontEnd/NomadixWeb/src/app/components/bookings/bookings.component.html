@@ -1,1 +1,183 @@
-﻿<div class="container mt-4"><h2>📅 My Bookings</h2><p>Booking history will appear here.</p></div>
+<div class="page">
+  <header class="page-header">
+    <div>
+      <h1 class="page-title">Reservations</h1>
+      <p class="page-subtitle">
+        Chaque creation execute la mini-saga du Booking-Service : validation du voyageur et
+        lecture du vol par <strong>OpenFeign</strong>, decrement atomique du stock, ecriture locale,
+        puis publication de <span class="mono">booking.created</span> dans
+        <strong>RabbitMQ</strong>.
+      </p>
+    </div>
+    <button type="button" class="btn btn-ghost" (click)="loadAll()" [disabled]="loading()">
+      Actualiser
+    </button>
+  </header>
+
+  <div class="stats">
+    <div class="stat">
+      <div class="stat-label">Reservations</div>
+      <div class="stat-value">{{ bookings().length }}</div>
+    </div>
+    <div class="stat">
+      <div class="stat-label">Confirmees</div>
+      <div class="stat-value">{{ confirmedCount() }}</div>
+    </div>
+    <div class="stat">
+      <div class="stat-label">Annulees</div>
+      <div class="stat-value">{{ cancelledCount() }}</div>
+    </div>
+  </div>
+
+  <section class="card" style="margin-bottom: 20px">
+    <h2 class="section-title">Nouvelle reservation</h2>
+    <div class="toolbar">
+      <label class="field" style="flex: 1; min-width: 220px">
+        <span>Voyageur</span>
+        <select
+          class="select"
+          [ngModel]="selectedTravelerId()"
+          (ngModelChange)="selectedTravelerId.set($event)"
+        >
+          <option [ngValue]="null">Choisir un voyageur...</option>
+          @for (traveler of travelers(); track traveler.id) {
+            <option [ngValue]="traveler.id">
+              {{ traveler.firstName }} {{ traveler.lastName }} ({{ traveler.email }})
+            </option>
+          }
+        </select>
+      </label>
+
+      <label class="field" style="flex: 1; min-width: 260px">
+        <span>Vol</span>
+        <select
+          class="select"
+          [ngModel]="selectedFlightId()"
+          (ngModelChange)="selectedFlightId.set($event)"
+        >
+          <option [ngValue]="null">Choisir un vol...</option>
+          @for (flight of flights(); track flight.id) {
+            <option
+              [ngValue]="flight.id"
+              [disabled]="flight.availableSeats <= 0 && flight.id !== selectedFlightId()"
+            >
+              {{ flight.flightNumber }} - {{ flight.departureCity }} &rarr;
+              {{ flight.arrivalCity }} ({{ flight.departureDate | date: 'dd/MM/yyyy' }})
+              @if (flight.availableSeats <= 0) {
+                - complet
+              } @else {
+                - {{ flight.availableSeats }} places
+              }
+            </option>
+          }
+        </select>
+      </label>
+
+      <button
+        type="button"
+        class="btn btn-primary"
+        [disabled]="busy() || selectedTravelerId() === null || selectedFlightId() === null"
+        (click)="createBooking()"
+      >
+        {{ busy() ? 'Traitement...' : 'Reserver' }}
+      </button>
+    </div>
+
+    @if (selectedFlight(); as flight) {
+      <p class="hint" style="margin-top: 0">
+        Vol selectionne : {{ flight.flightNumber }}, {{ flight.availableSeats }} place(s)
+        restante(s)@if (flight.price !== null && flight.price > 0) {
+          , prix unitaire {{ flight.price | number: '1.2-2' }} DT
+        }.
+        Le prix total de la reservation est celui lu sur le Flight-Service par Feign.
+      </p>
+    }
+  </section>
+
+  @if (notice()) {
+    <div class="alert alert-success">{{ notice() }}</div>
+  }
+  @if (error()) {
+    <div class="alert alert-error">{{ error() }}</div>
+  }
+
+  @if (loading()) {
+    <div class="card state">
+      <div class="spinner"></div>
+      Chargement des reservations...
+    </div>
+  } @else if (bookings().length === 0) {
+    <div class="card state">
+      <strong>Aucune reservation</strong>
+      Creez la premiere reservation avec le formulaire ci-dessus.
+    </div>
+  } @else {
+    <div class="table-wrap">
+      <table>
+        <thead>
+          <tr>
+            <th>#</th>
+            <th>Voyageur</th>
+            <th>Vol</th>
+            <th>Statut</th>
+            <th class="num">Prix total</th>
+            <th>Creee le</th>
+            <th></th>
+          </tr>
+        </thead>
+        <tbody>
+          @for (booking of bookings(); track booking.id) {
+            <tr>
+              <td class="mono">{{ booking.id }}</td>
+              <td>{{ travelerName(booking.travelerId) }}</td>
+              <td>{{ flightLabel(booking.flightId) }}</td>
+              <td>
+                <span class="badge" [ngClass]="statusBadge(booking.status)">
+                  {{ statusLabel(booking.status) }}
+                </span>
+              </td>
+              <td class="num">
+                @if (booking.totalPrice !== null) {
+                  {{ booking.totalPrice | number: '1.2-2' }} DT
+                } @else {
+                  <span class="muted">non calcule</span>
+                }
+              </td>
+              <td class="muted">
+                {{ booking.createdAt | date: 'dd/MM/yyyy HH:mm' }}
+              </td>
+              <td class="num">
+                <div class="btn-row" style="justify-content: flex-end">
+                  @if (booking.status !== 'CONFIRMED') {
+                    <button
+                      type="button"
+                      class="btn btn-success btn-sm"
+                      [disabled]="busy()"
+                      (click)="confirm(booking)"
+                    >
+                      Confirmer
+                    </button>
+                  }
+                  @if (booking.status !== 'CANCELLED') {
+                    <button
+                      type="button"
+                      class="btn btn-danger btn-sm"
+                      [disabled]="busy()"
+                      (click)="cancel(booking)"
+                    >
+                      Annuler
+                    </button>
+                  }
+                </div>
+              </td>
+            </tr>
+          }
+        </tbody>
+      </table>
+    </div>
+    <p class="hint">
+      Une annulation est idempotente : elle ne restitue la place qu'une seule fois, meme si
+      l'evenement <span class="mono">booking.cancelled</span> est rejoue.
+    </p>
+  }
+</div>
