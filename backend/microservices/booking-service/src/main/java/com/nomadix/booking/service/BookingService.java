@@ -5,7 +5,9 @@ import com.nomadix.booking.client.TravelerClient;
 import com.nomadix.booking.dto.FlightDTO;
 import com.nomadix.booking.dto.TravelerDTO;
 import com.nomadix.booking.entity.Booking;
+import com.nomadix.booking.messaging.BookingEventPublisher;
 import com.nomadix.booking.repository.BookingRepository;
+import com.nomadix.booking.security.BearerTokens;
 import feign.FeignException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -19,11 +21,15 @@ import java.util.Set;
 /**
  * Orchestration des reservations (ebauche de SAGA).
  *
- * 1. Valider le voyageur (Traveler-Service, synchrone)
- * 2. Lire le vol et verifier le stock (Flight-Service, synchrone)
- * 3. Reserver la place cote Flight (decrement atomique)
- * 4. Ecrire la reservation localement
- * 5. Si l'etape 4 echoue : compensation = restituer la place
+ * <p>1. Valider le voyageur (Traveler-Service, synchrone)<br>
+ * 2. Lire le vol et verifier le stock (Flight-Service, synchrone)<br>
+ * 3. Reserver la place cote Flight (decrement atomique)<br>
+ * 4. Ecrire la reservation localement<br>
+ * 5. Si l'etape 4 echoue : compensation = restituer la place</p>
+ *
+ * <p>Le jeton Keycloak de l'utilisateur est capture une seule fois puis transmis
+ * a chaque appel Feign : le circuit breaker execute ces appels sur un autre
+ * thread, ou le SecurityContext n'existe plus.</p>
  */
 @Service
 public class BookingService {
@@ -34,19 +40,24 @@ public class BookingService {
     private final BookingRepository bookingRepository;
     private final FlightClient flightClient;
     private final TravelerClient travelerClient;
+    private final BookingEventPublisher eventPublisher;
 
     public BookingService(BookingRepository bookingRepository,
                           FlightClient flightClient,
-                          TravelerClient travelerClient) {
+                          TravelerClient travelerClient,
+                          BookingEventPublisher eventPublisher) {
         this.bookingRepository = bookingRepository;
         this.flightClient = flightClient;
         this.travelerClient = travelerClient;
+        this.eventPublisher = eventPublisher;
     }
 
     public Booking createBooking(Long travelerId, Long flightId) {
-        validateTraveler(travelerId);
-        FlightDTO flight = checkFlightAvailability(flightId);
-        reserveSeat(flightId);
+        String authorization = BearerTokens.current();
+
+        validateTraveler(travelerId, authorization);
+        FlightDTO flight = checkFlightAvailability(flightId, authorization);
+        reserveSeat(flightId, authorization);
 
         Booking booking = new Booking();
         booking.setTravelerId(travelerId);
@@ -55,10 +66,14 @@ public class BookingService {
         booking.setStatus("CONFIRMED");
 
         try {
-            return bookingRepository.save(booking);
+            Booking saved = bookingRepository.save(booking);
+            // Evenement asynchrone emis APRES l'ecriture : RabbitMQ ne doit jamais
+            // annuler une reservation (publication fire-and-forget).
+            eventPublisher.bookingCreated(saved);
+            return saved;
         } catch (RuntimeException e) {
             // Compensation : la place avait ete decrementee, on la rend.
-            releaseQuietly(flightId);
+            releaseQuietly(flightId, authorization);
             throw e;
         }
     }
@@ -79,16 +94,19 @@ public class BookingService {
             return booking;
         }
 
+        String authorization = BearerTokens.current();
+
         if ("CANCELLED".equals(status)) {
             booking.setStatus(status);
             Booking saved = bookingRepository.save(booking);
-            releaseQuietly(booking.getFlightId());
+            eventPublisher.bookingCancelled(saved);
+            releaseQuietly(booking.getFlightId(), authorization);
             return saved;
         }
 
         if ("CONFIRMED".equals(status) && "CANCELLED".equals(current)) {
             // On reactive une reservation annulee : il faut reprendre une place.
-            reserveSeat(booking.getFlightId());
+            reserveSeat(booking.getFlightId(), authorization);
         }
 
         booking.setStatus(status);
@@ -100,9 +118,11 @@ public class BookingService {
         if ("CANCELLED".equals(booking.getStatus())) {
             return; // idempotent : ne pas restituer deux fois la place
         }
+        String authorization = BearerTokens.current();
         booking.setStatus("CANCELLED");
-        bookingRepository.save(booking);
-        releaseQuietly(booking.getFlightId());
+        Booking saved = bookingRepository.save(booking);
+        eventPublisher.bookingCancelled(saved);
+        releaseQuietly(booking.getFlightId(), authorization);
     }
 
     // ---------------------------------------------------------------- privates
@@ -113,10 +133,10 @@ public class BookingService {
                         "Reservation " + bookingId + " inexistante"));
     }
 
-    private void validateTraveler(Long travelerId) {
+    private void validateTraveler(Long travelerId, String authorization) {
         TravelerDTO traveler;
         try {
-            traveler = travelerClient.getTravelerById(travelerId);
+            traveler = travelerClient.getTravelerById(travelerId, authorization);
         } catch (FeignException.NotFound e) {
             throw new ResponseStatusException(HttpStatus.NOT_FOUND,
                     "Voyageur " + travelerId + " inexistant");
@@ -127,10 +147,10 @@ public class BookingService {
         }
     }
 
-    private FlightDTO checkFlightAvailability(Long flightId) {
+    private FlightDTO checkFlightAvailability(Long flightId, String authorization) {
         FlightDTO flight;
         try {
-            flight = flightClient.getFlightById(flightId);
+            flight = flightClient.getFlightById(flightId, authorization);
         } catch (FeignException.NotFound e) {
             throw new ResponseStatusException(HttpStatus.NOT_FOUND,
                     "Vol " + flightId + " inexistant");
@@ -146,10 +166,10 @@ public class BookingService {
         return flight;
     }
 
-    private void reserveSeat(Long flightId) {
+    private void reserveSeat(Long flightId, String authorization) {
         FlightDTO reserved;
         try {
-            reserved = flightClient.reserveSeat(flightId);
+            reserved = flightClient.reserveSeat(flightId, authorization);
         } catch (FeignException.NotFound e) {
             throw new ResponseStatusException(HttpStatus.NOT_FOUND,
                     "Vol " + flightId + " inexistant");
@@ -163,9 +183,9 @@ public class BookingService {
         }
     }
 
-    private void releaseQuietly(Long flightId) {
+    private void releaseQuietly(Long flightId, String authorization) {
         try {
-            flightClient.releaseSeat(flightId);
+            flightClient.releaseSeat(flightId, authorization);
         } catch (Exception e) {
             log.error("[COMPENSATION] place du vol {} non restituee : {}", flightId, e.toString());
         }

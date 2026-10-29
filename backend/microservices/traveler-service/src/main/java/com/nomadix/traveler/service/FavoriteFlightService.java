@@ -3,11 +3,13 @@ package com.nomadix.traveler.service;
 import com.nomadix.traveler.client.FlightClient;
 import com.nomadix.traveler.dto.FlightDTO;
 import com.nomadix.traveler.repository.TravelerRepository;
+import com.nomadix.traveler.security.BearerTokens;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.web.server.ResponseStatusException;
 
 import java.util.List;
+import java.util.Objects;
 import java.util.stream.Collectors;
 
 /**
@@ -30,14 +32,19 @@ public class FavoriteFlightService {
         var traveler = travelerRepository.findById(travelerId)
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND,
                         "Voyageur introuvable : " + travelerId));
+        // Jeton capture sur le thread de la requete puis transmis explicitement a Feign.
+        String authorization = BearerTokens.current();
+        // Le fallback renvoie null pour un vol indisponible : on filtre pour que la
+        // reponse respecte le schema documente (tableau de FlightDTO, jamais [null]).
         return traveler.getFavoriteFlights().stream()
-                .map(flightClient::getFlightById)          // enrichissement via Feign (comme le cours)
+                .map(flightId -> flightClient.getFlightById(flightId, authorization))
+                .filter(Objects::nonNull)
                 .collect(Collectors.toList());
     }
 
     public void saveFavoriteFlight(Long travelerId, Long flightId) {
         // Validation synchrone : le vol existe-t-il ? (appel Feign bloquant = PRINCIPE DU COURS)
-        FlightDTO flight = flightClient.getFlightById(flightId);
+        FlightDTO flight = flightClient.getFlightById(flightId, BearerTokens.current());
         if (flight == null || flight.getId() == null) {
             throw new ResponseStatusException(HttpStatus.NOT_FOUND, "Vol introuvable : " + flightId);
         }

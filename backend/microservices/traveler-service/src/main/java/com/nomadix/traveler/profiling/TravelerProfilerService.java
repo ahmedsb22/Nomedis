@@ -1,12 +1,13 @@
 package com.nomadix.traveler.profiling;
 
+import com.nomadix.traveler.entity.Traveler;
+import com.nomadix.traveler.repository.TravelerRepository;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
 
 import java.lang.reflect.Field;
 import java.time.LocalDateTime;
-import java.util.Arrays;
 import java.util.StringJoiner;
 
 /**
@@ -24,11 +25,14 @@ public class TravelerProfilerService {
 
     private final ProfilingRulesEngine rulesEngine;
     private final TravelerProfileRepository profileRepository;
+    private final TravelerRepository travelerRepository;
 
     public TravelerProfilerService(ProfilingRulesEngine rulesEngine,
-                                   TravelerProfileRepository profileRepository) {
+                                   TravelerProfileRepository profileRepository,
+                                   TravelerRepository travelerRepository) {
         this.rulesEngine = rulesEngine;
         this.profileRepository = profileRepository;
+        this.travelerRepository = travelerRepository;
     }
 
     /** Appele par l'aspect AOP apres chaque save() d'un traveler. */
@@ -53,24 +57,7 @@ public class TravelerProfilerService {
                         return p;
                     });
 
-            profile.setFullName(attrs.getFullName());
-            profile.setEmail(attrs.getEmail());
-            profile.setPhone(attrs.getPhone());
-            profile.setPassportNumber(attrs.getPassportNumber());
-            profile.setNationality(attrs.getNationality());
-            profile.setBirthDate(attrs.getBirthDate());
-            profile.setScore(result.getScore());
-            profile.setSegment(result.getSegment());
-            profile.setCompleteness(result.getCompleteness());
-            profile.setValidEmail(result.isValidEmail());
-            profile.setDisposableEmail(result.isDisposableEmail());
-            profile.setValidPassport(result.isValidPassport());
-            StringJoiner flags = new StringJoiner(", ");
-            result.getRiskFlags().forEach(flags::add);
-            profile.setRiskFlags(flags.toString());
-            profile.setRulesVersion(ProfilingRulesEngine.RULES_VERSION);
-            profile.setUpdatedAt(LocalDateTime.now());
-
+            applyResult(profile, attrs, result);
             profileRepository.save(profile);
             log.info("[PROFILING] Traveler {} -> score={}, segment={}, flags=[{}]",
                     attrs.getTravelerId(), result.getScore(), result.getSegment(), profile.getRiskFlags());
@@ -92,11 +79,20 @@ public class TravelerProfilerService {
         }
     }
 
-    /** Reapplique les regles courantes sur les attributs stockes. */
+    /**
+     * Reapplique les regles courantes sur un profil deja stocke.
+     *
+     * <p>Si le voyageur existe mais n'a jamais ete profile (par exemple cree
+     * avant l'activation de l'aspect), le profil est construit a la volee a
+     * partir de l'entite Traveler : l'endpoint recompute ne renvoie donc plus
+     * un 404 trompeur pour un identifiant valide.</p>
+     */
     public TravelerProfile recompute(String travelerId) {
-        TravelerProfile p = profileRepository.findById(travelerId)
-                .orElseThrow(() -> new IllegalArgumentException("Profil introuvable : " + travelerId));
+        TravelerProfile existing = profileRepository.findById(travelerId).orElse(null);
+        return (existing != null) ? recomputeStored(existing) : recomputeFromTraveler(travelerId);
+    }
 
+    private TravelerProfile recomputeStored(TravelerProfile p) {
         TravelerAttributes attrs = new TravelerAttributes();
         attrs.setTravelerId(p.getTravelerId());
         attrs.setFullName(p.getFullName());
@@ -106,19 +102,53 @@ public class TravelerProfilerService {
         attrs.setNationality(p.getNationality());
         attrs.setBirthDate(p.getBirthDate());
 
-        ProfileResult result = rulesEngine.evaluate(attrs);
-        p.setScore(result.getScore());
-        p.setSegment(result.getSegment());
-        p.setCompleteness(result.getCompleteness());
-        p.setValidEmail(result.isValidEmail());
-        p.setDisposableEmail(result.isDisposableEmail());
-        p.setValidPassport(result.isValidPassport());
+        applyResult(p, attrs, rulesEngine.evaluate(attrs));
+        return profileRepository.save(p);
+    }
+
+    private TravelerProfile recomputeFromTraveler(String travelerId) {
+        Long id = parseId(travelerId);
+        Traveler traveler = (id == null) ? null : travelerRepository.findById(id).orElse(null);
+        if (traveler == null) {
+            throw new IllegalArgumentException("Voyageur ou profil introuvable : " + travelerId);
+        }
+
+        TravelerAttributes attrs = extractAttributes(traveler);
+        TravelerProfile profile = new TravelerProfile();
+        profile.setTravelerId(attrs.getTravelerId());
+        profile.setCreatedAt(LocalDateTime.now());
+
+        applyResult(profile, attrs, rulesEngine.evaluate(attrs));
+        log.info("[PROFILING] Profil cree a la demande pour traveler {}", travelerId);
+        return profileRepository.save(profile);
+    }
+
+    private void applyResult(TravelerProfile profile, TravelerAttributes attrs, ProfileResult result) {
+        profile.setFullName(attrs.getFullName());
+        profile.setEmail(attrs.getEmail());
+        profile.setPhone(attrs.getPhone());
+        profile.setPassportNumber(attrs.getPassportNumber());
+        profile.setNationality(attrs.getNationality());
+        profile.setBirthDate(attrs.getBirthDate());
+        profile.setScore(result.getScore());
+        profile.setSegment(result.getSegment());
+        profile.setCompleteness(result.getCompleteness());
+        profile.setValidEmail(result.isValidEmail());
+        profile.setDisposableEmail(result.isDisposableEmail());
+        profile.setValidPassport(result.isValidPassport());
         StringJoiner flags = new StringJoiner(", ");
         result.getRiskFlags().forEach(flags::add);
-        p.setRiskFlags(flags.toString());
-        p.setRulesVersion(ProfilingRulesEngine.RULES_VERSION);
-        p.setUpdatedAt(LocalDateTime.now());
-        return profileRepository.save(p);
+        profile.setRiskFlags(flags.toString());
+        profile.setRulesVersion(ProfilingRulesEngine.RULES_VERSION);
+        profile.setUpdatedAt(LocalDateTime.now());
+    }
+
+    private Long parseId(String raw) {
+        try {
+            return Long.valueOf(raw);
+        } catch (NumberFormatException e) {
+            return null;
+        }
     }
 
     // ------------------------------------------------------------------

@@ -1,0 +1,103 @@
+{
+  "rabbit_version": "3.13.0",
+  "vhosts": [
+    {
+      "name": "/"
+    }
+  ],
+  "users": [
+    {
+      "name": "nomadix",
+      "password": "nomadix123",
+      "tags": [
+        "administrator",
+        "management"
+      ]
+    }
+  ],
+  "permissions": [
+    {
+      "user": "nomadix",
+      "vhost": "/",
+      "configure": ".*",
+      "write": ".*",
+      "read": ".*"
+    }
+  ],
+  "exchanges": [
+    {
+      "name": "nomadix.events",
+      "vhost": "/",
+      "type": "topic",
+      "durable": true,
+      "auto_delete": false,
+      "internal": false,
+      "arguments": {}
+    },
+    {
+      "name": "nomadix.dlx",
+      "vhost": "/",
+      "type": "topic",
+      "durable": true,
+      "auto_delete": false,
+      "internal": false,
+      "arguments": {}
+    }
+  ],
+  "queues": [
+    {
+      "name": "notification.events",
+      "vhost": "/",
+      "durable": true,
+      "auto_delete": false,
+      "arguments": {
+        "x-queue-type": "classic",
+        "x-dead-letter-exchange": "nomadix.dlx",
+        "x-dead-letter-routing-key": "notification.events.dlq"
+      }
+    },
+    {
+      "name": "notification.events.dlq",
+      "vhost": "/",
+      "durable": true,
+      "auto_delete": false,
+      "arguments": {
+        "x-queue-type": "classic"
+      }
+    }
+  ],
+  "bindings": [
+    {
+      "source": "nomadix.events",
+      "vhost": "/",
+      "destination": "notification.events",
+      "destination_type": "queue",
+      "routing_key": "flight.#",
+      "arguments": {}
+    },
+    {
+      "source": "nomadix.events",
+      "vhost": "/",
+      "destination": "notification.events",
+      "destination_type": "queue",
+      "routing_key": "traveler.#",
+      "arguments": {}
+    },
+    {
+      "source": "nomadix.events",
+      "vhost": "/",
+      "destination": "notification.events",
+      "destination_type": "queue",
+      "routing_key": "booking.#",
+      "arguments": {}
+    },
+    {
+      "source": "nomadix.dlx",
+      "vhost": "/",
+      "destination": "notification.events.dlq",
+      "destination_type": "queue",
+      "routing_key": "notification.events.dlq",
+      "arguments": {}
+    }
+  ]
+}

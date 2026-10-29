@@ -2,6 +2,8 @@ package com.nomadix.traveler.messaging;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.ObjectNode;
+import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.tags.Tag;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
@@ -18,10 +20,18 @@ import java.util.Map;
  */
 @RestController
 @RequestMapping("/api/packh/traveler-events")
+@Tag(name = "Messaging (RabbitMQ)", description = "Emission d'evenements dans l'exchange nomadix.events")
 public class PackHTravelerEventController {
 
     private final ObjectMapper mapper = new ObjectMapper();
 
+    @Operation(
+            summary = "Publier un evenement traveler.registered",
+            description = """
+                    Publie dans l'exchange topic `nomadix.events` (routing key `traveler.registered`).
+                    Corps optionnel : sans corps, un voyageur d'exemple est genere.
+                    Role ADMIN requis.
+                    """)
     @PostMapping("/emit")
     public ResponseEntity<ObjectNode> emit(@RequestBody(required = false) Map<String, Object> body) {
         ObjectNode node = mapper.createObjectNode();

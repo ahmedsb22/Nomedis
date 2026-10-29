@@ -1,0 +1,223 @@
+{
+  "realm": "nomadix",
+  "displayName": "Nomadix",
+  "displayNameHtml": "<strong>Nomadix</strong> &mdash; Identity Provider",
+  "enabled": true,
+  "sslRequired": "none",
+  "registrationAllowed": false,
+  "registrationEmailAsUsername": false,
+  "loginWithEmailAllowed": true,
+  "duplicateEmailsAllowed": false,
+  "resetPasswordAllowed": false,
+  "editUsernameAllowed": false,
+  "bruteForceProtected": false,
+  "accessTokenLifespan": 900,
+  "accessTokenLifespanForImplicitFlow": 900,
+  "ssoSessionIdleTimeout": 1800,
+  "ssoSessionMaxLifespan": 36000,
+  "offlineSessionIdleTimeout": 2592000,
+  "revokeRefreshToken": true,
+  "refreshTokenMaxReuse": 0,
+  "internationalizationEnabled": false,
+  "defaultSignatureAlgorithm": "RS256",
+  "verifyEmail": false,
+  "roles": {
+    "realm": [
+      {
+        "name": "ADMIN",
+        "description": "Administrateur Nomadix : catalogue, conferences, profils, suppression de voyageurs",
+        "composite": false,
+        "clientRole": false
+      },
+      {
+        "name": "TRAVELER",
+        "description": "Voyageur Nomadix : reservations, favoris, consultation de son profil",
+        "composite": false,
+        "clientRole": false
+      }
+    ]
+  },
+  "clients": [
+    {
+      "clientId": "nomadix-frontend",
+      "name": "Nomadix Angular frontend",
+      "description": "Application Angular (SPA publique, Authorization Code + PKCE)",
+      "enabled": true,
+      "protocol": "openid-connect",
+      "publicClient": true,
+      "bearerOnly": false,
+      "standardFlowEnabled": true,
+      "implicitFlowEnabled": false,
+      "directAccessGrantsEnabled": false,
+      "serviceAccountsEnabled": false,
+      "frontchannelLogout": true,
+      "redirectUris": [
+        "http://localhost:4200/*",
+        "http://localhost:8090/*"
+      ],
+      "webOrigins": [
+        "http://localhost:4200",
+        "http://localhost:8090"
+      ],
+      "attributes": {
+        "pkce.code.challenge.method": "S256",
+        "post.logout.redirect.uris": "http://localhost:4200/*##http://localhost:8090/*",
+        "backchannel.logout.session.required": "true",
+        "backchannel.logout.revoke.offline.tokens": "false"
+      },
+      "protocolMappers": [
+        {
+          "name": "nomadix-api-audience",
+          "protocol": "openid-connect",
+          "protocolMapper": "oidc-audience-mapper",
+          "consentRequired": false,
+          "config": {
+            "included.custom.audience": "nomadix-api",
+            "access.token.claim": "true",
+            "id.token.claim": "false",
+            "introspection.token.claim": "true"
+          }
+        }
+      ]
+    },
+    {
+      "clientId": "nomadix-swagger",
+      "name": "Nomadix Swagger UI (test des APIs)",
+      "description": "Client public servant au bouton Authorize des Swagger UI (Authorization Code + PKCE)",
+      "enabled": true,
+      "protocol": "openid-connect",
+      "publicClient": true,
+      "standardFlowEnabled": true,
+      "implicitFlowEnabled": false,
+      "directAccessGrantsEnabled": false,
+      "serviceAccountsEnabled": false,
+      "redirectUris": [
+        "http://localhost:8081/swagger-ui/oauth2-redirect.html",
+        "http://localhost:8082/swagger-ui/oauth2-redirect.html",
+        "http://localhost:8083/swagger-ui/oauth2-redirect.html",
+        "http://localhost:8084/swagger-ui/oauth2-redirect.html",
+        "http://localhost:8084/swagger-ui/oauth2-redirect",
+        "http://localhost:8089/swagger-ui/oauth2-redirect.html",
+        "http://localhost:3000/swagger-ui/oauth2-redirect.html",
+        "http://localhost:9081/swagger-ui/oauth2-redirect.html",
+        "http://localhost:9082/swagger-ui/oauth2-redirect.html",
+        "http://localhost:9083/swagger-ui/oauth2-redirect.html",
+        "http://localhost:9084/swagger-ui/oauth2-redirect.html",
+        "http://localhost:9084/swagger-ui/oauth2-redirect",
+        "http://localhost:9089/swagger-ui/oauth2-redirect.html",
+        "http://localhost:3001/swagger-ui/oauth2-redirect.html"
+      ],
+      "webOrigins": [
+        "http://localhost:8081",
+        "http://localhost:8082",
+        "http://localhost:8083",
+        "http://localhost:8084",
+        "http://localhost:8089",
+        "http://localhost:3000",
+        "http://localhost:9081",
+        "http://localhost:9082",
+        "http://localhost:9083",
+        "http://localhost:9084",
+        "http://localhost:9089",
+        "http://localhost:3001"
+      ],
+      "attributes": {
+        "pkce.code.challenge.method": "S256"
+      },
+      "protocolMappers": [
+        {
+          "name": "nomadix-api-audience",
+          "protocol": "openid-connect",
+          "protocolMapper": "oidc-audience-mapper",
+          "consentRequired": false,
+          "config": {
+            "included.custom.audience": "nomadix-api",
+            "access.token.claim": "true",
+            "id.token.claim": "false",
+            "introspection.token.claim": "true"
+          }
+        }
+      ]
+    },
+    {
+      "clientId": "nomadix-cli",
+      "name": "Nomadix CLI / tests curl",
+      "description": "Client public utilise par les scripts et les tests (Resource Owner Password Credentials).",
+      "enabled": true,
+      "protocol": "openid-connect",
+      "publicClient": true,
+      "standardFlowEnabled": false,
+      "implicitFlowEnabled": false,
+      "directAccessGrantsEnabled": true,
+      "serviceAccountsEnabled": false,
+      "redirectUris": [],
+      "webOrigins": [],
+      "attributes": {},
+      "protocolMappers": [
+        {
+          "name": "nomadix-api-audience",
+          "protocol": "openid-connect",
+          "protocolMapper": "oidc-audience-mapper",
+          "consentRequired": false,
+          "config": {
+            "included.custom.audience": "nomadix-api",
+            "access.token.claim": "true",
+            "id.token.claim": "false",
+            "introspection.token.claim": "true"
+          }
+        }
+      ]
+    }
+  ],
+  "users": [
+    {
+      "username": "admin",
+      "enabled": true,
+      "emailVerified": true,
+      "firstName": "Admin",
+      "lastName": "Nomadix",
+      "email": "admin@nomadix.tn",
+      "attributes": {
+        "locale": [
+          "fr"
+        ]
+      },
+      "credentials": [
+        {
+          "type": "password",
+          "value": "admin123",
+          "temporary": false
+        }
+      ],
+      "realmRoles": [
+        "ADMIN",
+        "TRAVELER"
+      ],
+      "requiredActions": []
+    },
+    {
+      "username": "sami",
+      "enabled": true,
+      "emailVerified": true,
+      "firstName": "Sami",
+      "lastName": "Trabelsi",
+      "email": "sami@nomadix.tn",
+      "attributes": {
+        "locale": [
+          "fr"
+        ]
+      },
+      "credentials": [
+        {
+          "type": "password",
+          "value": "sami123",
+          "temporary": false
+        }
+      ],
+      "realmRoles": [
+        "TRAVELER"
+      ],
+      "requiredActions": []
+    }
+  ]
+}

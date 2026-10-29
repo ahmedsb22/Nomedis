@@ -1,5 +1,5 @@
 server:
-  port: 8089
+  port: ${SERVER_PORT:8089}
 
 spring:
   application:
@@ -31,12 +31,47 @@ spring:
           uri: lb://CONFERENCE-SERVICE
           predicates:
             - Path=/api/conferences,/api/conferences/**
+        # ------------------------------------------------------------------
+        # Endpoints Pack H d'emission RabbitMQ (exchange nomadix.events).
+        # Sans ces routes, /api/packh/** tombait en 404 sur la Gateway alors
+        # que la regle de securite correspondante existait deja.
+        # Un prefixe par microservice produit, car chaque service est
+        # proprietaire de ses evenements.
+        # ------------------------------------------------------------------
+        - id: packh-traveler-events
+          uri: lb://TRAVELER-SERVICE
+          predicates:
+            - Path=/api/packh/traveler-events,/api/packh/traveler-events/**
+        - id: packh-flight-events
+          uri: lb://FLIGHT-SERVICE
+          predicates:
+            - Path=/api/packh/flight-events,/api/packh/flight-events/**
+        - id: packh-booking-events
+          uri: lb://BOOKING-SERVICE
+          predicates:
+            - Path=/api/packh/booking-events,/api/packh/booking-events/**
+        # Scenarios RabbitMQ (poison message -> DLX -> DLQ)
+        - id: packh-rabbitmq-scenarios
+          uri: lb://BOOKING-SERVICE
+          predicates:
+            - Path=/api/packh/rabbitmq,/api/packh/rabbitmq/**
       globalcors:
         add-to-simple-url-handler-mapping: true
         cors-configurations:
           '[/**]':
-            allowedOrigins:
-              - "http://localhost:4200"
+            # Toutes les origines locales sont acceptees, quel que soit le port :
+            # frontend Angular (4200 en dev, 8090 en Docker) et Swagger UI de
+            # chaque service (8081-8084 / 3000 en dev, 9081-9084 / 9089 / 3001
+            # avec Docker Compose).
+            #
+            # Pourquoi des patterns et non une liste figee : les ports publies
+            # changent selon le mode de lancement. Une origine oubliee fait
+            # echouer le preflight OPTIONS en 403 SANS en-tete CORS, et le
+            # navigateur masque alors le vrai code HTTP derriere un
+            # "TypeError: NetworkError" (c'est ce qui cassait "Try it out").
+            allowedOriginPatterns:
+              - "http://localhost:*"
+              - "http://127.0.0.1:*"
             allowedMethods:
               - GET
               - POST
@@ -57,11 +92,11 @@ spring:
 
 eureka:
   instance:
-    hostname: localhost
-    prefer-ip-address: false
+    hostname: ${EUREKA_INSTANCE_HOSTNAME:localhost}
+    prefer-ip-address: ${EUREKA_PREFER_IP:false}
   client:
     service-url:
-      defaultZone: http://localhost:8761/eureka/
+      defaultZone: ${EUREKA_DEFAULT_ZONE:http://localhost:8761/eureka/}
     register-with-eureka: true
     fetch-registry: true
     registry-fetch-interval-seconds: 5
@@ -77,8 +112,17 @@ management:
     gateway:
       enabled: true
 
+# ============================================================================
+# Keycloak (OAuth2 / OpenID Connect) - la Gateway valide les jetons emis ici
+# ============================================================================
+nomadix:
+  keycloak:
+    issuer: ${NOMADIX_KEYCLOAK_ISSUER:http://localhost:8180/realms/nomadix}
+    jwk-set-uri: ${NOMADIX_KEYCLOAK_JWK_SET_URI:${nomadix.keycloak.issuer}/protocol/openid-connect/certs}
+    audience: ${NOMADIX_KEYCLOAK_AUDIENCE:nomadix-api}
+
 info:
   app:
     name: API Gateway
-    description: Nomadix API Gateway
-    version: 2.0.0
+    description: Nomadix API Gateway (OAuth2 Resource Server Keycloak)
+    version: 3.0.0

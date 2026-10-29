@@ -1,0 +1,357 @@
+# ============================================================================
+#  Nomadix - deploiement complet de l'architecture microservices
+#  ---------------------------------------------------------------------------
+#  Demarrage  : docker compose up -d --build
+#  Etat       : docker compose ps
+#  Logs       : docker compose logs -f booking-service notification-consumer
+#  Arret      : docker compose down          (les volumes de donnees restent)
+#  Reset      : docker compose down -v       (supprime MySQL / RabbitMQ)
+#
+#  Acces depuis le poste hote :
+#    Frontend Angular        http://localhost:8090
+#    API Gateway             http://localhost:9089
+#    Eureka                  http://localhost:9761
+#    Swagger traveler        http://localhost:9081/swagger-ui.html
+#    Swagger flight          http://localhost:9082/swagger-ui.html
+#    Swagger booking         http://localhost:9083/swagger-ui.html
+#    Swagger notification    http://localhost:9084/swagger-ui
+#    Swagger conference      http://localhost:3001/swagger-ui
+#    Keycloak                http://localhost:8180 (admin / admin)
+#    RabbitMQ management     http://localhost:15672 (nomadix / nomadix123)
+#    MySQL                   localhost:3307 (root / root)
+# ============================================================================
+
+# Variables communes aux services Java.
+#
+# Adressage Eureka : une instance publie DEUX adresses qui n'ont pas le meme usage.
+#
+#   1. hostname + port  -> utilises par la Gateway (lb://SERVICE) et par les clients
+#      Feign (lb://FLIGHT-SERVICE...). Ces appels partent de l'INTERIEUR du reseau
+#      Docker : il faut donc le nom du service Compose et le port interne du
+#      conteneur (traveler-service:8081, flight-service:8082, ...).
+#      Ni les IP de conteneurs (172.20.x.x) ni 'localhost' ne sont joignables
+#      depuis un autre conteneur.
+#
+#   2. statusPageUrl / healthCheckUrl -> affichees dans le dashboard Eureka
+#      (http://localhost:9761), ouvert depuis le navigateur du poste hote. Windows
+#      ne sait pas resoudre les noms Docker ni joindre les IP 172.20.x.x : ces URL
+#      pointent donc vers les ports PUBLIES (localhost:908x).
+#
+# Historique du bug : forcer EUREKA_INSTANCE_HOSTNAME=localhost avec
+# EUREKA_INSTANCE_NON_SECURE_PORT=<port hote> rendait le registre inutilisable
+# (la Gateway et Feign appelaient localhost:908x depuis un autre conteneur) :
+# toutes les routes repondaient 500. Les ports publies ne servent QUE aux liens
+# du dashboard, jamais au routage.
+x-java-common: &java-common
+  EUREKA_CLIENT_SERVICEURL_DEFAULTZONE: http://eureka-server:8761/eureka/
+  EUREKA_INSTANCE_PREFER_IP_ADDRESS: "false"
+  NOMADIX_KEYCLOAK_ISSUER: http://localhost:8180/realms/nomadix
+  NOMADIX_KEYCLOAK_JWK_SET_URI: http://keycloak:8180/realms/nomadix/protocol/openid-connect/certs
+  NOMADIX_KEYCLOAK_AUDIENCE: nomadix-api
+  SPRING_RABBITMQ_HOST: rabbitmq
+  SPRING_RABBITMQ_PORT: "5672"
+  SPRING_RABBITMQ_USERNAME: nomadix
+  SPRING_RABBITMQ_PASSWORD: nomadix123
+
+services:
+  # --------------------------------------------------------------------------
+  # Infrastructure
+  # --------------------------------------------------------------------------
+  mysql:
+    image: mysql:8.4
+    container_name: nomadix-mysql
+    restart: unless-stopped
+    mem_limit: 448m
+    environment:
+      MYSQL_ROOT_PASSWORD: root
+      MYSQL_ROOT_HOST: "%"
+    ports:
+      - "3307:3306"
+    volumes:
+      - nomadix-mysql-data:/var/lib/mysql
+      - ./docker/mysql/init:/docker-entrypoint-initdb.d:ro
+    healthcheck:
+      test: ["CMD-SHELL", "mysqladmin ping -h 127.0.0.1 -uroot -proot --silent"]
+      interval: 10s
+      timeout: 5s
+      retries: 20
+      start_period: 30s
+
+  rabbitmq:
+    image: rabbitmq:3.13-management
+    container_name: nomadix-rabbitmq
+    restart: unless-stopped
+    mem_limit: 320m
+    hostname: nomadix-rabbitmq
+    environment:
+      RABBITMQ_DEFAULT_USER: nomadix
+      RABBITMQ_DEFAULT_PASS: nomadix123
+    ports:
+      - "5672:5672"
+      - "15672:15672"
+    volumes:
+      - nomadix-rabbitmq-data:/var/lib/rabbitmq
+      # Topologie importee a chaque demarrage : exchange nomadix.events, file
+      # notification.events AVEC ses arguments dead-letter et les bindings.
+      - ./backend/messaging/rabbitmq/rabbitmq.conf:/etc/rabbitmq/rabbitmq.conf:ro
+      - ./backend/messaging/rabbitmq/definitions.json:/etc/rabbitmq/definitions.json:ro
+    healthcheck:
+      test: ["CMD", "rabbitmq-diagnostics", "-q", "ping"]
+      interval: 10s
+      timeout: 10s
+      retries: 12
+      start_period: 20s
+
+  keycloak:
+    image: quay.io/keycloak/keycloak:26.0.8
+    container_name: nomadix-keycloak
+    restart: unless-stopped
+    mem_limit: 512m
+    command:
+      - start-dev
+      - --import-realm
+      - --http-port=8180
+    environment:
+      KC_BOOTSTRAP_ADMIN_USERNAME: admin
+      KC_BOOTSTRAP_ADMIN_PASSWORD: admin
+      KC_HTTP_PORT: 8180
+      KC_HTTP_ENABLED: "true"
+      KC_HOSTNAME: http://localhost:8180
+      KC_HOSTNAME_STRICT: "false"
+      JAVA_OPTS_APPEND: -Xms32m -Xmx256m -XX:MaxMetaspaceSize=160m
+    ports:
+      - "8180:8180"
+    volumes:
+      - ./backend/keycloak/nomadix-realm.json:/opt/keycloak/data/import/nomadix-realm.json:ro
+    healthcheck:
+      test: ["CMD-SHELL", "exec 3<>/dev/tcp/127.0.0.1/8180 && echo -e 'GET /realms/nomadix HTTP/1.1\\r\\nHost: localhost\\r\\n\\r\\n' >&3 && head -1 <&3 | grep -q '200'"]
+      interval: 10s
+      timeout: 5s
+      retries: 18
+      start_period: 40s
+
+  # --------------------------------------------------------------------------
+  # Service discovery + API Gateway
+  # --------------------------------------------------------------------------
+  eureka-server:
+    build: ./backend/discovery/eureka-server
+    image: nomadix/eureka-server:latest
+    container_name: nomadix-eureka
+    restart: unless-stopped
+    mem_limit: 320m
+    environment:
+      # Le registre ne s'enregistre pas lui-meme (register-with-eureka=false) :
+      # aucune configuration d'instance n'est necessaire ici.
+      JAVA_OPTS: -Xms32m -Xmx128m -XX:MaxMetaspaceSize=96m -XX:+UseSerialGC
+    ports:
+      - "9761:8761"
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://127.0.0.1:8761/actuator/health | grep -q '\"status\":\"UP\"'"]
+      interval: 10s
+      timeout: 5s
+      retries: 20
+      start_period: 30s
+
+  gateway:
+    build: ./backend/gateway
+    image: nomadix/gateway:latest
+    container_name: nomadix-gateway
+    restart: unless-stopped
+    mem_limit: 384m
+    environment:
+      <<: *java-common
+      SERVER_PORT: "8089"
+      # Routage interne : nom Docker + port interne.
+      EUREKA_INSTANCE_HOSTNAME: gateway
+      # Identifiant lisible dans le dashboard (par defaut : id du conteneur) :
+      # sans ce reglage Spring utilise <hostname conteneur>:api-gateway:8089.
+      EUREKA_INSTANCE_INSTANCE_ID: gateway:8089
+      # Liens du dashboard : ports publies sur l'hote.
+      EUREKA_INSTANCE_STATUS_PAGE_URL: http://localhost:9089/actuator/info
+      EUREKA_INSTANCE_HEALTH_CHECK_URL: http://localhost:9089/actuator/health
+      JAVA_OPTS: -Xms32m -Xmx128m -XX:MaxMetaspaceSize=96m -XX:+UseSerialGC -XX:TieredStopAtLevel=1
+    ports:
+      - "9089:8089"
+    depends_on:
+      eureka-server:
+        condition: service_healthy
+      keycloak:
+        condition: service_started
+
+  # =========================================================================
+  # MICROSERVICES MÉTIER (Mémoire augmentée pour éviter OutOfMemory Metaspace)
+  # =========================================================================
+  traveler-service:
+    build: ./backend/microservices/traveler-service
+    image: nomadix/traveler-service:latest
+    container_name: nomadix-traveler
+    restart: unless-stopped
+    mem_limit: 512m
+    environment:
+      <<: *java-common
+      EUREKA_INSTANCE_HOSTNAME: traveler-service
+      EUREKA_INSTANCE_INSTANCE_ID: traveler-service:8081
+      EUREKA_INSTANCE_STATUS_PAGE_URL: http://localhost:9081/actuator/info
+      EUREKA_INSTANCE_HEALTH_CHECK_URL: http://localhost:9081/actuator/health
+      # Demarrage rapide : C1 seul (pas de compilation C2 pendant le boot) et
+      # SerialGC (moins de threads GC que G1 sur un petit tas). Sans ces options
+      # les 3 JVM demarrent en ~200 s a froid et le dashboard Eureka reste
+      # incomplet pendant plusieurs minutes.
+      JAVA_OPTS: -Xms96m -Xmx320m -XX:MaxMetaspaceSize=160m -XX:+UseSerialGC -XX:TieredStopAtLevel=1 -Xshare:auto -Dspring.jmx.enabled=false
+      SPRING_DATASOURCE_URL: jdbc:mysql://mysql:3306/nomadix_traveler_db?useSSL=false&allowPublicKeyRetrieval=true&serverTimezone=UTC
+      SPRING_DATASOURCE_USERNAME: nomadix
+      SPRING_DATASOURCE_PASSWORD: nomadix123
+      SPRING_SQL_INIT_MODE: always
+    ports:
+      - "9081:8081"
+    depends_on:
+      mysql:
+        condition: service_healthy
+      eureka-server:
+        condition: service_healthy
+      rabbitmq:
+        condition: service_healthy
+      keycloak:
+        condition: service_started
+
+  flight-service:
+    build: ./backend/microservices/flight-service
+    image: nomadix/flight-service:latest
+    container_name: nomadix-flight
+    restart: unless-stopped
+    mem_limit: 512m
+    environment:
+      <<: *java-common
+      EUREKA_INSTANCE_HOSTNAME: flight-service
+      EUREKA_INSTANCE_INSTANCE_ID: flight-service:8082
+      EUREKA_INSTANCE_STATUS_PAGE_URL: http://localhost:9082/actuator/info
+      EUREKA_INSTANCE_HEALTH_CHECK_URL: http://localhost:9082/actuator/health
+      JAVA_OPTS: -Xms96m -Xmx320m -XX:MaxMetaspaceSize=160m -XX:+UseSerialGC -XX:TieredStopAtLevel=1 -Xshare:auto -Dspring.jmx.enabled=false
+      SPRING_DATASOURCE_URL: jdbc:mysql://mysql:3306/nomadix_flight_db?useSSL=false&allowPublicKeyRetrieval=true&serverTimezone=UTC
+      SPRING_DATASOURCE_USERNAME: nomadix
+      SPRING_DATASOURCE_PASSWORD: nomadix123
+      SPRING_SQL_INIT_MODE: always
+    ports:
+      - "9082:8082"
+    depends_on:
+      mysql:
+        condition: service_healthy
+      eureka-server:
+        condition: service_healthy
+      rabbitmq:
+        condition: service_healthy
+      keycloak:
+        condition: service_started
+
+  booking-service:
+    build: ./backend/microservices/booking-service
+    image: nomadix/booking-service:latest
+    container_name: nomadix-booking
+    restart: unless-stopped
+    mem_limit: 512m
+    environment:
+      <<: *java-common
+      EUREKA_INSTANCE_HOSTNAME: booking-service
+      EUREKA_INSTANCE_INSTANCE_ID: booking-service:8083
+      EUREKA_INSTANCE_STATUS_PAGE_URL: http://localhost:9083/actuator/info
+      EUREKA_INSTANCE_HEALTH_CHECK_URL: http://localhost:9083/actuator/health
+      JAVA_OPTS: -Xms96m -Xmx320m -XX:MaxMetaspaceSize=160m -XX:+UseSerialGC -XX:TieredStopAtLevel=1 -Xshare:auto -Dspring.jmx.enabled=false
+      SPRING_DATASOURCE_URL: jdbc:mysql://mysql:3306/nomadix_booking_db?useSSL=false&allowPublicKeyRetrieval=true&serverTimezone=UTC
+      SPRING_DATASOURCE_USERNAME: nomadix
+      SPRING_DATASOURCE_PASSWORD: nomadix123
+      SPRING_SQL_INIT_MODE: always
+    ports:
+      - "9083:8083"
+    depends_on:
+      mysql:
+        condition: service_healthy
+      eureka-server:
+        condition: service_healthy
+      rabbitmq:
+        condition: service_healthy
+      traveler-service:
+        condition: service_started
+      flight-service:
+        condition: service_started
+
+  conference-service:
+    build: ./backend/microservices/conference-service
+    image: nomadix/conference-service:latest
+    container_name: nomadix-conference
+    restart: unless-stopped
+    mem_limit: 256m
+    environment:
+      PORT: "3000"
+      EUREKA_HOST: eureka-server
+      EUREKA_PORT: "8761"
+      INSTANCE_HOSTNAME: conference-service # Nom resolvable dans le reseau Docker
+      INSTANCE_PORT: "3000"                 # Port interne : utilise par la Gateway
+      PUBLIC_PORT: "3001"                   # Port publie sur l'hote : liens du dashboard
+    ports:
+      - "3001:3000"
+    depends_on:
+      eureka-server:
+        condition: service_healthy
+
+  # --------------------------------------------------------------------------
+  # Notifications : API FastAPI + consommateur RabbitMQ
+  # --------------------------------------------------------------------------
+  notification-service:
+    build: ./backend/microservices/notification
+    image: nomadix/notification-service:latest
+    container_name: nomadix-notification
+    restart: unless-stopped
+    mem_limit: 160m
+    environment:
+      PORT: "8084"
+      EUREKA_DEFAULT_ZONE: http://eureka-server:8761/eureka/
+      EUREKA_INSTANCE_HOSTNAME: notification-service # Nom resolvable dans le reseau Docker
+      EUREKA_INSTANCE_ID: notification-service:8084  # Identifiant lisible dans le dashboard
+      EUREKA_PUBLIC_URL: http://localhost:9084        # URL publiee sur l'hote (liens)
+      NOTIFICATIONS_STORE: /data/notifications.json
+    volumes:
+      - nomadix-notifications:/data
+    ports:
+      - "9084:8084"
+    depends_on:
+      eureka-server:
+        condition: service_healthy
+
+  notification-consumer:
+    build: ./backend/microservices/notification
+    image: nomadix/notification-service:latest
+    container_name: nomadix-notification-consumer
+    restart: unless-stopped
+    mem_limit: 128m
+    command: ["python", "packh_rabbit_consumer.py"]
+    environment:
+      RABBIT_HOST: rabbitmq
+      RABBIT_PORT: "5672"
+      RABBIT_USER: nomadix
+      RABBIT_PASSWORD: nomadix123
+      NOTIFICATIONS_STORE: /data/notifications.json
+    volumes:
+      - nomadix-notifications:/data
+    depends_on:
+      rabbitmq:
+        condition: service_healthy
+
+  # --------------------------------------------------------------------------
+  # Frontend Angular (nginx + proxy /api vers la Gateway)
+  # --------------------------------------------------------------------------
+  frontend:
+    build: ./frontEnd/NomadixWeb
+    image: nomadix/frontend:latest
+    container_name: nomadix-frontend
+    restart: unless-stopped
+    mem_limit: 64m
+    ports:
+      - "8090:80"
+    depends_on:
+      gateway:
+        condition: service_started
+
+volumes:
+  nomadix-mysql-data:
+  nomadix-rabbitmq-data:
+  nomadix-notifications:

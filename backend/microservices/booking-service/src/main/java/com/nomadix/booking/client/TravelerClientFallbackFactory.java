@@ -9,20 +9,19 @@ import org.springframework.stereotype.Component;
 
 @Component
 public class TravelerClientFallbackFactory implements FallbackFactory<TravelerClient> {
+
     private static final Logger log = LoggerFactory.getLogger(TravelerClientFallbackFactory.class);
 
     @Override
     public TravelerClient create(final Throwable cause) {
         log.warn("[CIRCUIT BREAKER] Traveler-Service indisponible -> fallback. Cause : {}", cause.toString());
-        return new TravelerClient() {
-            @Override
-            public TravelerDTO getTravelerById(Long id) {
-                if (cause instanceof FeignException.NotFound) {
-                    throw (FeignException) cause;
-                }
-                // null = service indisponible ; le BookingService renvoie 503.
-                return null;
+        return (id, authorization) -> {
+            if (cause instanceof FeignException.NotFound) {
+                // 404 = voyageur inexistant, information metier a remonter.
+                throw (FeignException) cause;
             }
+            // null => BookingService repond 503 (service indisponible).
+            return null;
         };
     }
 }
