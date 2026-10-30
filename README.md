@@ -66,7 +66,13 @@ avec *dead-letter queue*, et une interface Angular complète protégée par Keyc
 
 ## 2. Architecture
 
-![Architecture microservices Nomadix](documentation/architecture_microservices.png)
+<div align="center">
+
+![Architecture microservices Nomadix : clients, nginx, API Gateway, Eureka, les cinq microservices, MySQL, RabbitMQ et Keycloak](documentation/02-architecture.png)
+
+*Vue structurelle : qui parle à qui, sur quel port, avec quel moyen de transport et quelle protection.*
+
+</div>
 
 Les quatre principes structurants :
 
@@ -82,9 +88,10 @@ Les quatre principes structurants :
   conférences (léger, orienté I/O), Python/FastAPI pour les notifications et le
   consommateur RabbitMQ.
 
-> Diagrammes détaillés (contexte, conteneurs, workflows, modèle de domaine, saga,
-> topologie RabbitMQ) : dossier [`documentation/`](documentation/) et page imprimable
-> [`documentation/05-diagrammes.html`](documentation/05-diagrammes.html).
+> Cette image est la vue d'ensemble (`documentation/02-architecture.png`). Les
+> diagrammes détaillés (contexte, conteneurs, workflows, modèle de domaine, saga,
+> topologie RabbitMQ) sont dans le dossier [`documentation/`](documentation/) et sur la
+> page imprimable [`documentation/05-diagrammes.html`](documentation/05-diagrammes.html).
 
 ---
 
