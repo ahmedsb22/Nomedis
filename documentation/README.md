@@ -22,7 +22,6 @@ avec le code et se mettent a jour dans la meme pull request que le code.
 | [scripts/diagnose-docker-registry.sh](scripts/diagnose-docker-registry.sh) | **Diagnostic du build** : quand `docker compose up -d --build` echoue en TLS (`x509: certificate is not valid for any names`), identifie la couche fautive (DNS, certificat, proxy, miroir, WSL) et imprime la correction. | - |
 | [scripts/run-scenarios.sh](scripts/run-scenarios.sh) | **Runbook executable** : rejoue les scenarios S1 a S12, affiche chaque commande lancee (`$`), sa sortie brute (`|`), les requetes SQL et les extraits de logs, puis verifie chaque preuve par une assertion (HTTP, MySQL, compteurs RabbitMQ, `x-death`, logs Docker). Lit des deltas : rejouable sans purge ni remise a zero. | - |
 | [scenario-v2.md](scenario-v2.md) | **Version courte du runbook** : un scenario par ligne (logique / action / preuve), avec le bail Eureka a 150 s, l'ouverture du circuit au 5e echec et les codes de retour exacts de la Gateway. | - |
-| [../knowledge.md](../knowledge.md) | **Explication du code** : chaque fichier et son role, les dependances, les 8 mecanismes cles (Eureka, Gateway, AOP, SAGA, Feign/circuit breaker, RabbitMQ, database-per-service, nginx) avec extraits commentes, les 12 scenarios pas a pas, le bareme de scoring calcule a la main et la lecture des resultats. | - |
 
 Les images historiques (`architecture_microservices.png`, `diagramme_de_classe.png`,
 `diagramme_de_domaines.png`) sont conservees pour les rapports deja rendus. **Les fichiers

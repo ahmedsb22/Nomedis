@@ -25,19 +25,18 @@
 1. [À propos du projet](#1-à-propos-du-projet)
 2. [Architecture](#2-architecture)
 3. [Stack technique](#3-stack-technique)
-4. [Équipe et répartition](#4-équipe-et-répartition)
-5. [Détail des microservices](#5-détail-des-microservices)
-6. [Sécurité (Keycloak / JWT)](#6-sécurité-keycloak--jwt)
-7. [Communication : synchrone et asynchrone](#7-communication--synchrone-et-asynchrone)
-8. [Fonctionnalités techniques clés](#8-fonctionnalités-techniques-clés)
-9. [Démarrage rapide avec Docker Compose](#9-démarrage-rapide-avec-docker-compose)
-10. [Lancement local sans Docker](#10-lancement-local-sans-docker)
-11. [Tests et qualité](#11-tests-et-qualité)
-12. [Documentation](#12-documentation)
-13. [Structure du dépôt](#13-structure-du-dépôt)
-14. [Scénarios de démonstration](#14-scénarios-de-démonstration)
-15. [Dépannage](#15-dépannage)
-16. [Perspectives d'amélioration](#16-perspectives-damélioration)
+4. [Détail des microservices](#4-détail-des-microservices)
+5. [Sécurité (Keycloak / JWT)](#5-sécurité-keycloak--jwt)
+6. [Communication : synchrone et asynchrone](#6-communication--synchrone-et-asynchrone)
+7. [Fonctionnalités techniques clés](#7-fonctionnalités-techniques-clés)
+8. [Démarrage rapide avec Docker Compose](#8-démarrage-rapide-avec-docker-compose)
+9. [Lancement local sans Docker](#9-lancement-local-sans-docker)
+10. [Tests et qualité](#10-tests-et-qualité)
+11. [Documentation](#11-documentation)
+12. [Structure du dépôt](#12-structure-du-dépôt)
+13. [Scénarios de démonstration](#13-scénarios-de-démonstration)
+14. [Dépannage](#14-dépannage)
+15. [Perspectives d'amélioration](#15-perspectives-damélioration)
 
 ---
 
@@ -114,20 +113,7 @@ Les quatre principes structurants :
 
 ---
 
-## 4. Équipe et répartition
-
-Chaque membre est propriétaire de ses services, de son Swagger et de ses tests, ce qui a
-permis un développement parallèle sans conflit.
-
-| Membre | Rôle principal | Services et composants |
-| :--- | :--- | :--- |
-| **Ahmed** (`ahmedsb22`) | Architecture & intégration | API Gateway, Eureka Server, **Booking-Service** (orchestration, Feign, résilience), Docker Compose, CI Git. |
-| **Sami** (`samibaazaoui`) | Cœur métier & frontend | **Flight-Service** (catalogue, stock), **Conference-Service** (Node.js), interface **Angular**. |
-| **Mohamed Hazem** (`Mohamedhazem.Amor`) | Services support & qualité | **Traveler-Service** (voyageurs, favoris, profilage AOP), **Notification-Service** (Python/FastAPI), tests d'intégration, documentation. |
-
----
-
-## 5. Détail des microservices
+## 4. Détail des microservices
 
 Les ports « local » servent au lancement hors Docker ; les ports « Docker » sont ceux
 publiés sur la machine hôte par `docker-compose.yml` (les ports internes des conteneurs
@@ -153,7 +139,7 @@ recherche, création ADMIN), **Voyageurs** (CRUD, favoris, profil calculé), **R
 
 ---
 
-## 6. Sécurité (Keycloak / JWT)
+## 5. Sécurité (Keycloak / JWT)
 
 Keycloak est le **seul émetteur de jetons** (realm `nomadix`). La Gateway vérifie la
 signature (JWKS), l'émetteur (`iss`) et l'audience (`aud = nomadix-api`), puis relaie
@@ -177,7 +163,7 @@ droit manque. C'est un point explicitement vérifié dans les scénarios de test
 
 ---
 
-## 7. Communication : synchrone et asynchrone
+## 6. Communication : synchrone et asynchrone
 
 Le projet illustre volontairement **deux canaux**, avec un critère de choix assumé.
 
@@ -224,7 +210,7 @@ thread bloqué.
 
 ---
 
-## 8. Fonctionnalités techniques clés
+## 7. Fonctionnalités techniques clés
 
 | Mécanisme | Implémentation | Bénéfice |
 | :--- | :--- | :--- |
@@ -240,7 +226,7 @@ thread bloqué.
 
 ---
 
-## 9. Démarrage rapide avec Docker Compose
+## 8. Démarrage rapide avec Docker Compose
 
 ### Prérequis
 
@@ -289,7 +275,7 @@ Volumes persistants : `nomadix-mysql-data`, `nomadix-rabbitmq-data`,
 
 ---
 
-## 10. Lancement local sans Docker
+## 9. Lancement local sans Docker
 
 Utile pour déboguer un service dans l'IDE. Prérequis : **JDK 17 + Maven**, **Node.js 18/20**,
 **Python 3.10+**, **MySQL** (XAMPP, port `3306`, `root` sans mot de passe), **RabbitMQ** et
@@ -327,7 +313,7 @@ Gateway (`http://localhost:8089`).
 
 ---
 
-## 11. Tests et qualité
+## 10. Tests et qualité
 
 | Périmètre | Commande | Ce qui est vérifié |
 | :--- | :--- | :--- |
@@ -345,7 +331,7 @@ Les scénarios de bout en bout (Eureka, Gateway, OpenFeign, RabbitMQ) sont décr
 
 ---
 
-## 12. Documentation
+## 11. Documentation
 
 Toute la documentation technique est versionnée dans le dépôt.
 
@@ -367,7 +353,7 @@ la description de l'API.
 
 ---
 
-## 13. Structure du dépôt
+## 12. Structure du dépôt
 
 ```
 Nomadix/
@@ -391,7 +377,7 @@ Nomadix/
 
 ---
 
-## 14. Scénarios de démonstration
+## 13. Scénarios de démonstration
 
 Le guide complet (commandes, résultats attendus, mode dégradé) est dans
 [`documentation/06-scenarios-test.md`](documentation/06-scenarios-test.md). Résumé :
@@ -416,7 +402,7 @@ Unacked / Consumers*, onglet **Exchanges** pour visualiser `nomadix.events` et
 
 ---
 
-## 15. Dépannage
+## 14. Dépannage
 
 | Symptôme | Cause probable | Action |
 | :--- | :--- | :--- |
@@ -430,7 +416,7 @@ Unacked / Consumers*, onglet **Exchanges** pour visualiser `nomadix.events` et
 
 ---
 
-## 16. Perspectives d'amélioration
+## 15. Perspectives d'amélioration
 
 - **Observabilité** : tracing distribué (OpenTelemetry + Zipkin) et métriques Micrometer
   agrégées, aujourd'hui limitées à Actuator service par service.
