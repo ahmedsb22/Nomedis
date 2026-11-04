@@ -59,6 +59,7 @@ coverage/
 target/
 .DS_Store
 Thumbs.db
+desktop.ini
 .env
 .env.local
 update1.md

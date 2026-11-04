@@ -18,6 +18,10 @@ avec le code et se mettent a jour dans la meme pull request que le code.
 | [04-api-reference.md](04-api-reference.md) | Catalogue des endpoints, matrice de droits, codes de retour, verification des specs | 2 |
 | [05-diagrammes.html](05-diagrammes.html) | Page HTML autonome : architecture de deploiement, domaine, saga, topologie RabbitMQ, Eureka/Gateway/Feign (SVG, aucun CDN) | 5 |
 | [06-scenarios-test.md](06-scenarios-test.md) | Scenarios OpenFeign et RabbitMQ, parcours UI, commandes curl de verification, depannage | 1 |
+| [scenario.md](scenario.md) | **Runbook de soutenance** (mode d'emploi executable) : sequence express sans redemarrage (§0), scenarios RabbitMQ metier et techniques, OpenFeign, Eureka, Gateway et fonctionnels, commandes Docker, depannage, checklist et remise a zero (§11) | 3 |
+| [scripts/diagnose-docker-registry.sh](scripts/diagnose-docker-registry.sh) | **Diagnostic du build** : quand `docker compose up -d --build` echoue en TLS (`x509: certificate is not valid for any names`), identifie la couche fautive (DNS, certificat, proxy, miroir, WSL) et imprime la correction. | - |
+| [scripts/run-scenarios.sh](scripts/run-scenarios.sh) | **Runbook executable** : rejoue les scenarios S1 a S12, affiche chaque commande lancee (`$`), sa sortie brute (`|`), les requetes SQL et les extraits de logs, puis verifie chaque preuve par une assertion (HTTP, MySQL, compteurs RabbitMQ, `x-death`, logs Docker). Lit des deltas : rejouable sans purge ni remise a zero. | - |
+| [../knowledge.md](../knowledge.md) | **Explication du code** : chaque fichier et son role, les dependances, les 8 mecanismes cles (Eureka, Gateway, AOP, SAGA, Feign/circuit breaker, RabbitMQ, database-per-service, nginx) avec extraits commentes, les 12 scenarios pas a pas, le bareme de scoring calcule a la main et la lecture des resultats. | - |
 
 Les images historiques (`architecture_microservices.png`, `diagramme_de_classe.png`,
 `diagramme_de_domaines.png`) sont conservees pour les rapports deja rendus. **Les fichiers
