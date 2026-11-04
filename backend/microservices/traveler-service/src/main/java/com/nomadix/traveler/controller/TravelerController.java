@@ -1,7 +1,8 @@
 package com.nomadix.traveler.controller;
 
+import com.nomadix.traveler.dto.TravelerCreateDTO;
 import com.nomadix.traveler.entity.Traveler;
-import com.nomadix.traveler.repository.TravelerRepository;
+import com.nomadix.traveler.service.TravelerService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import io.swagger.v3.oas.annotations.tags.Tag;
@@ -16,66 +17,69 @@ import java.util.List;
  *
  * <p>Tous les endpoints exigent un jeton Keycloak. La suppression est en plus
  * reservee au role ADMIN (applique ici et par la Gateway).</p>
+ *
+ * <p>Le corps des ecritures est un {@link TravelerCreateDTO} : il contient les
+ * quatre champs du <b>Smart Profiling Engine</b> (telephone, passeport,
+ * nationalite, date de naissance) en plus de l'identite. Le profiling est
+ * declenche automatiquement par l'aspect AOP apres la sauvegarde.</p>
  */
 @RestController
 @RequestMapping("/api/travelers")
 @Tag(name = "Travelers", description = "CRUD des voyageurs (base dediee nomadix_traveler_db)")
 public class TravelerController {
 
-    private final TravelerRepository travelerRepository;
+    private final TravelerService travelerService;
 
-    public TravelerController(TravelerRepository travelerRepository) {
-        this.travelerRepository = travelerRepository;
+    public TravelerController(TravelerService travelerService) {
+        this.travelerService = travelerService;
     }
 
     @Operation(summary = "Lister les voyageurs", description = "Retourne tous les voyageurs (jeton requis).")
     @GetMapping
     public ResponseEntity<List<Traveler>> getAll() {
-        List<Traveler> travelers = travelerRepository.findAll();
-        System.out.println(">>> PREUVE : NOMBRE DE VOYAGEURS TROUVES EN BASE : " + travelers.size());
-        return ResponseEntity.ok(travelers);
+        return ResponseEntity.ok(travelerService.findAll());
     }
 
     @Operation(summary = "Obtenir un voyageur par son id")
     @ApiResponse(responseCode = "404", description = "Voyageur inexistant")
     @GetMapping("/{id}")
     public ResponseEntity<Traveler> getById(@PathVariable Long id) {
-        return travelerRepository.findById(id)
+        return travelerService.findById(id)
                 .map(ResponseEntity::ok)
                 .orElse(ResponseEntity.notFound().build());
     }
 
-    @Operation(summary = "Creer un voyageur", description = "Retourne 201 avec l'entite creee (id genere).")
+    @Operation(
+            summary = "Creer un voyageur",
+            description = "Retourne 201 avec l'entite creee (id genere). Un profil est calcule "
+                    + "automatiquement par l'aspect AOP : consultez /api/travelers/profiles/{id}.")
     @ApiResponse(responseCode = "201", description = "Voyageur cree")
     @PostMapping
-    public ResponseEntity<Traveler> create(@RequestBody Traveler traveler) {
-        return ResponseEntity.status(HttpStatus.CREATED).body(travelerRepository.save(traveler));
+    public ResponseEntity<Traveler> create(@RequestBody TravelerCreateDTO dto) {
+        return ResponseEntity.status(HttpStatus.CREATED).body(travelerService.create(dto));
     }
 
-    @Operation(summary = "Mettre a jour un voyageur", description = "Met a jour l'entite existante (404 si absente).")
+    @Operation(
+            summary = "Mettre a jour un voyageur",
+            description = "Met a jour l'entite existante (404 si absente). Le profil est recalcule "
+                    + "automatiquement, ce qui permet de voir le score progresser quand on complete "
+                    + "le passeport ou le telephone.")
+    @ApiResponse(responseCode = "404", description = "Voyageur inexistant")
     @PutMapping("/{id}")
-    public ResponseEntity<Traveler> update(@PathVariable Long id, @RequestBody Traveler travelerDetails) {
-        return travelerRepository.findById(id)
-                .map(existing -> {
-                    existing.setFirstName(travelerDetails.getFirstName());
-                    existing.setLastName(travelerDetails.getLastName());
-                    existing.setEmail(travelerDetails.getEmail());
-                    existing.setRole(travelerDetails.getRole());
-                    return ResponseEntity.ok(travelerRepository.save(existing));
-                })
+    public ResponseEntity<Traveler> update(@PathVariable Long id, @RequestBody TravelerCreateDTO dto) {
+        return travelerService.update(id, dto)
+                .map(ResponseEntity::ok)
                 .orElse(ResponseEntity.notFound().build());
     }
 
-    @Operation(summary = "Supprimer un voyageur", description = "Role ADMIN requis.")
+    @Operation(summary = "Supprimer un voyageur", description = "Role ADMIN requis. Le profil associe est supprime par l'aspect AOP.")
     @ApiResponse(responseCode = "204", description = "Voyageur supprime")
     @ApiResponse(responseCode = "404", description = "Voyageur inexistant")
     @ApiResponse(responseCode = "403", description = "Role ADMIN requis")
     @DeleteMapping("/{id}")
     public ResponseEntity<Void> delete(@PathVariable Long id) {
-        if (travelerRepository.existsById(id)) {
-            travelerRepository.deleteById(id);
-            return ResponseEntity.noContent().build();
-        }
-        return ResponseEntity.notFound().build();
+        return travelerService.delete(id)
+                ? ResponseEntity.noContent().build()
+                : ResponseEntity.notFound().build();
     }
 }

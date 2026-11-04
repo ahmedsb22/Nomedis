@@ -57,8 +57,11 @@ public class ProfilingRulesEngine {
         if (a.filled(a.getPassportNumber())) filled++;
         if (a.filled(a.getNationality()))    filled++;
         if (a.filled(a.getBirthDate()))      filled++;
-        r.setCompleteness((int) Math.round(filled * PTS_COMPLETENESS / 6.0));
-        score += r.getCompleteness();
+        // Le champ expose un POURCENTAGE (0-100) : un profil rempli a 100 %
+        // affiche completeness=100. Les points apportes au score restent
+        // plafonnes a PTS_COMPLETENESS (40), ce sont deux grandeurs distinctes.
+        r.setCompleteness((int) Math.round(filled * 100 / 6.0));
+        score += (int) Math.round(filled * PTS_COMPLETENESS / 6.0);
 
         // --- Regle 2 : validite de l'email ------------------------------------
         String email = a.filled(a.getEmail()) ? a.getEmail().trim().toLowerCase() : null;

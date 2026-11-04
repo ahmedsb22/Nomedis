@@ -151,11 +151,24 @@ public class TravelerProfilerService {
         }
     }
 
-    // ------------------------------------------------------------------
-    // Extraction tolerant : cherche les champs par noms candidats,
-    // en remontant la hierarchie de classes de l'entite.
-    // ------------------------------------------------------------------
+    /**
+     * Extraction des attributs.
+     *
+     * <p>Chemin principal : conversion <b>typee</b> depuis {@link Traveler}. Le
+     * modele de donnees porte desormais les quatre champs attendus par le
+     * moteur (telephone, passeport, nationalite, date de naissance), donc
+     * l'extraction est compilee et non plus devinee.</p>
+     *
+     * <p>Chemin de secours : si une autre entite est un jour publiee par un
+     * repository du service, les champs sont cherches par reflexion selon des
+     * noms candidats. Ce filet garantit que le profiling ne casse pas le
+     * metier, mais le scoring n'est fiable que sur le chemin type.</p>
+     */
     private TravelerAttributes extractAttributes(Object entity) {
+        if (entity instanceof Traveler traveler) {
+            return fromTraveler(traveler);
+        }
+
         TravelerAttributes a = new TravelerAttributes();
         a.setTravelerId(str(val(entity, "id")));
         a.setFullName(composeName(entity));
@@ -165,6 +178,26 @@ public class TravelerProfilerService {
         a.setNationality(str(val(entity, "nationality", "country", "pays")));
         a.setBirthDate(str(val(entity, "birthDate", "dateOfBirth", "dob", "dateNaissance")));
         return a;
+    }
+
+    /** Mapping explicite entite -&gt; attributs du moteur de regles. */
+    private TravelerAttributes fromTraveler(Traveler traveler) {
+        TravelerAttributes a = new TravelerAttributes();
+        a.setTravelerId(traveler.getId() == null ? null : String.valueOf(traveler.getId()));
+        a.setFullName(joinName(traveler.getFirstName(), traveler.getLastName()));
+        a.setEmail(traveler.getEmail());
+        a.setPhone(traveler.getPhone());
+        a.setPassportNumber(traveler.getPassportNumber());
+        a.setNationality(traveler.getNationality());
+        a.setBirthDate(traveler.getDateOfBirth() == null ? null : traveler.getDateOfBirth().toString());
+        return a;
+    }
+
+    private String joinName(String firstName, String lastName) {
+        String first = (firstName == null || firstName.isBlank()) ? null : firstName.trim();
+        String last = (lastName == null || lastName.isBlank()) ? null : lastName.trim();
+        if (first != null && last != null) return first + " " + last;
+        return (first != null) ? first : last;
     }
 
     private String composeName(Object entity) {
