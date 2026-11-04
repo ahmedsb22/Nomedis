@@ -23,14 +23,27 @@ export interface Traveler {
   email: string;
   role: string;
   favoriteFlights: number[];
+  /** Champs du Smart Profiling Engine (facultatifs : ils font monter le score). */
+  phone?: string | null;
+  passportNumber?: string | null;
+  nationality?: string | null;
+  /** Date ISO yyyy-MM-dd. */
+  dateOfBirth?: string | null;
 }
 
-/** Corps attendu par POST /api/travelers et PUT /api/travelers/{id}. */
+/**
+ * Corps attendu par POST /api/travelers et PUT /api/travelers/{id}
+ * (contrat backend : TravelerCreateDTO).
+ */
 export interface TravelerInput {
   firstName: string;
   lastName: string;
   email: string;
   role: string;
+  phone?: string | null;
+  passportNumber?: string | null;
+  nationality?: string | null;
+  dateOfBirth?: string | null;
 }
 
 /** Corps attendu par POST /api/flights (ADMIN). */

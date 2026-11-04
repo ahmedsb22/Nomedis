@@ -49,9 +49,31 @@
         <button type="button" class="btn btn-ghost" (click)="startCreate()">Annuler</button>
       }
     </div>
+    <div class="toolbar" style="margin-top: 12px">
+      <label class="field" style="flex: 1; min-width: 180px">
+        <span>Telephone</span>
+        <input class="input" type="tel" [(ngModel)]="phone" placeholder="+216 55 123 456" />
+      </label>
+      <label class="field" style="flex: 1; min-width: 160px">
+        <span>Passeport</span>
+        <input class="input" type="text" [(ngModel)]="passportNumber" placeholder="TN1234567" />
+      </label>
+      <label class="field" style="flex: 1; min-width: 160px">
+        <span>Nationalite</span>
+        <input class="input" type="text" [(ngModel)]="nationality" placeholder="Tunisienne" />
+      </label>
+      <label class="field" style="min-width: 180px">
+        <span>Date de naissance</span>
+        <input class="input" type="date" [(ngModel)]="dateOfBirth" />
+      </label>
+    </div>
     <p class="hint" style="margin-top: 0">
       POST puis PUT sur <span class="mono">/api/travelers</span> via la Gateway (jeton Keycloak requis).
       Le role metier est independant des roles Keycloak ADMIN / TRAVELER.
+      Les quatre champs du bas alimentent le <span class="mono">Smart Profiling Engine</span> :
+      plus le profil est complet (et coherent), plus le score et le segment progressent
+      (PLATINUM / GOLD / SILVER / BRONZE), visibles sur
+      <span class="mono">POST /api/travelers/profiles/{{ editingId() ?? '{id}' }}/recompute</span>.
     </p>
   </section>
 

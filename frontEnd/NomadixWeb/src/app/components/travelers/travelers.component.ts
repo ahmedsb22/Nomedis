@@ -47,6 +47,11 @@ export class TravelersComponent implements OnInit {
   protected lastName = '';
   protected email = '';
   protected role = 'USER';
+  // Champs du Smart Profiling Engine (facultatifs, mais valorises par le score)
+  protected phone = '';
+  protected passportNumber = '';
+  protected nationality = '';
+  protected dateOfBirth = '';
   protected readonly editingId = signal<number | null>(null);
 
   ngOnInit(): void {
@@ -156,6 +161,10 @@ export class TravelersComponent implements OnInit {
     this.lastName = traveler.lastName ?? '';
     this.email = traveler.email ?? '';
     this.role = traveler.role || 'USER';
+    this.phone = traveler.phone ?? '';
+    this.passportNumber = traveler.passportNumber ?? '';
+    this.nationality = traveler.nationality ?? '';
+    this.dateOfBirth = traveler.dateOfBirth ?? '';
     this.notice.set(null);
     this.expandedId.set(null);
   }
@@ -170,6 +179,11 @@ export class TravelersComponent implements OnInit {
       lastName: this.lastName.trim(),
       email: this.email.trim(),
       role: this.role || 'USER',
+      // Vide -> null : une chaine vide ferait echouer la conversion LocalDate cote service.
+      phone: this.blankToNull(this.phone),
+      passportNumber: this.blankToNull(this.passportNumber),
+      nationality: this.blankToNull(this.nationality),
+      dateOfBirth: this.blankToNull(this.dateOfBirth),
     };
     const id = this.editingId();
     this.saving.set(true);
@@ -227,6 +241,16 @@ export class TravelersComponent implements OnInit {
     this.lastName = '';
     this.email = '';
     this.role = 'USER';
+    this.phone = '';
+    this.passportNumber = '';
+    this.nationality = '';
+    this.dateOfBirth = '';
+  }
+
+  /** Les champs facultatifs vides partent en `null` plutot qu'en chaine vide. */
+  private blankToNull(value: string): string | null {
+    const trimmed = value.trim();
+    return trimmed === '' ? null : trimmed;
   }
 
   protected removeFavorite(traveler: Traveler, flight: Flight): void {
