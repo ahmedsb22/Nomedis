@@ -1,5 +1,6 @@
 package com.nomadix.booking.config;
 
+import feign.Logger;
 import io.swagger.v3.oas.models.Components;
 import io.swagger.v3.oas.models.OpenAPI;
 import io.swagger.v3.oas.models.info.Contact;
@@ -17,7 +18,10 @@ import org.springframework.context.annotation.Configuration;
 /** Specification OpenAPI du Booking-Service (orchestration de la saga). */
 @Configuration
 public class OpenApiConfig {
-
+    @Bean
+    Logger.Level feignLoggerLevel() {
+        return Logger.Level.FULL;
+    }
     @Bean
     public OpenAPI bookingOpenAPI(@Value("${nomadix.keycloak.issuer}") String issuer) {
         String authUrl = issuer + "/protocol/openid-connect/auth";

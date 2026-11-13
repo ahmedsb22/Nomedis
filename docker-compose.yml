@@ -57,6 +57,14 @@ services:
   # --------------------------------------------------------------------------
   # Infrastructure
   # --------------------------------------------------------------------------
+
+
+  zipkin:
+    image: openzipkin/zipkin:latest
+    container_name: zipkin
+    restart: unless-stopped
+    ports:
+      - "9411:9411"
   mysql:
     image: mysql:8.4
     container_name: nomadix-mysql
@@ -355,3 +363,4 @@ volumes:
   nomadix-mysql-data:
   nomadix-rabbitmq-data:
   nomadix-notifications:
+
